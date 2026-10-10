@@ -178,6 +178,38 @@ public sealed class DetailsViewModelTests
     }
 
     [Fact]
+    public async Task A_search_that_lost_the_race_cannot_leave_the_spinner_on()
+    {
+        var (kit, main, row) = await SyncedAsync(60);
+        using var _ = kit;
+        main.Accounts[0].ShowDetailsCommand.Execute(null);
+        var browse = main.Details!.Browse;
+        browse.EnsureLoaded();
+        await kit.UntilAsync(() => browse.Results.Count > 0 && !browse.IsSearching, what: "results");
+        var shown = browse.Results.Select(r => r.Summary.Pk).ToList();
+
+        // A newer search always wins. The loser can still reach the screen late (on a busy machine it only gets a thread after
+        // its successor has finished), either cancelled or simply outdated. Version 0 is older than any real search.
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+        foreach (var token in new[] { cancelled.Token, CancellationToken.None })
+        {
+            try
+            {
+                await browse.RunAsync(append: false, version: 0, token);
+            }
+            catch (OperationCanceledException)
+            {
+                // fine: a cancelled search just stops
+            }
+
+            kit.Pump.Run();
+            Assert.False(browse.IsSearching, $"the spinner was left on by a late search (cancelled: {token.IsCancellationRequested})");
+            Assert.Equal(shown, browse.Results.Select(r => r.Summary.Pk).ToList());
+        }
+    }
+
+    [Fact]
     public async Task The_attachment_filter_and_the_label_filter_apply()
     {
         var (kit, main, row) = await SyncedAsync(150);

@@ -44,7 +44,7 @@ tests/*                    xunit.v3 on Microsoft.Testing.Platform:  dotnet test 
 | 7. Docs (README, google-cloud-setup, architecture, updates), CHANGELOG | done |
 | 8. End-to-end check with `--demo`, screenshots, publish script run | done (see below) |
 
-Tests: **674**, all passing (Core 72, Google 292, Archive 110, Desktop 200). The full suite was run repeatedly back to back to
+Tests: **675**, all passing (Core 72, Google 292, Archive 110, Desktop 201). The full suite was run repeatedly back to back to
 shake out flaky tests; the ones found were test-harness races (see Gotchas), not product bugs, and are fixed.
 
 ## Verified vs not verified
@@ -79,6 +79,9 @@ The Google client is tested against scripted HTTP fixtures built from Google's d
 - Never `SqliteConnection.ClearAllPools()` in code that tests run in parallel: use `ArchiveDatabase.ReleaseConnections()`.
 - Desktop view-model tests use `PumpDispatcher` and `TestKit.UntilAsync/WaitIdleAsync`; do not assert on state a background thread can still change.
 - FTS5 search is prefix-based: tests must not rely on random words.
+- Background work that posts to the UI must be guarded by a version: on a loaded machine (GitHub's runner) a cancelled search can start *after* its
+  successor finished. `BrowseViewModel.RunAsync` bails out if cancelled and only the newest search touches `IsSearching`
+  (test: `A_search_that_lost_the_race_cannot_leave_the_spinner_on`). This was found by the first release build, not locally.
 - Avalonia compiled bindings: a nested `x:DataType` makes same-element `DataContext`/`IsVisible` bindings resolve against the child context; wrap in a Panel/ContentControl.
 - Style the destructive button as `Button.accent.danger`; a bare `Button.danger` also catches icon buttons (the window Close button turned red once).
 - Python is not installed; use sed/PowerShell/Edit for scripted edits. Escaped backslashes through sed are unreliable: use the editor.

@@ -163,13 +163,13 @@ public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, 
             return;
         }
 
-        _loadedOnce = true;
         foreach (var label in archive.Runtime.Accounts.GetLabels(accountId).Where(l => l.Id is not ("UNREAD" or "CHAT" or "CATEGORY_PERSONAL")))
         {
             Labels.Add(new LabelChoice(label.Id, label.Name));
         }
 
-        SelectedLabel = Labels[0];
+        SelectedLabel = Labels[0]; // before _loadedOnce is set, so this does not start a search of its own
+        _loadedOnce = true;
         Schedule(immediately: true);
     }
 
@@ -221,7 +221,7 @@ public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, 
         });
     }
 
-    private async Task RunAsync(bool append, int version, CancellationToken token)
+    internal async Task RunAsync(bool append, int version, CancellationToken token)
     {
         if (!archive.IsOpen)
         {
@@ -231,7 +231,19 @@ public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, 
         var runtime = archive.Runtime;
         var offset = append ? Results.Count : 0;
         var query = new SearchQuery(SearchText, accountId, SelectedLabel?.Id, OnlyWithAttachments, offset, PageSize);
-        dispatcher.Post(() => IsSearching = true);
+
+        // A search that was cancelled before it got a thread (a busy machine can run the newer one first) must leave no trace:
+        // nothing would ever switch the spinner it turned on off again.
+        token.ThrowIfCancellationRequested();
+
+        // Only the newest search owns the spinner; an outdated one must not switch it on or off.
+        dispatcher.Post(() =>
+        {
+            if (IsLatest(version))
+            {
+                IsSearching = true;
+            }
+        });
         SearchPage page;
         try
         {
@@ -241,8 +253,11 @@ public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, 
         {
             dispatcher.Post(() =>
             {
-                ResultText = $"The search failed: {ex.Message}";
-                IsSearching = false;
+                if (IsLatest(version))
+                {
+                    ResultText = $"The search failed: {ex.Message}";
+                    IsSearching = false;
+                }
             });
             return;
         }
@@ -250,9 +265,9 @@ public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, 
         var now = DateTimeOffset.UtcNow;
         dispatcher.Post(() =>
         {
-            if (version < Volatile.Read(ref _version) && !append)
+            if (!append && !IsLatest(version))
             {
-                return; // a newer search is already on its way
+                return; // a newer search is already on its way, and it will switch the spinner off
             }
 
             if (!append)
@@ -272,10 +287,16 @@ public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, 
             ResultText = page.Total == 0
                 ? (string.IsNullOrWhiteSpace(SearchText) ? "Nothing archived yet." : "No messages match.")
                 : $"{Formatting.Plural(page.Total, "message")}" + (string.IsNullOrWhiteSpace(SearchText) ? "" : " match") + (HasMore ? $" · showing the newest {Formatting.Count(Results.Count)}" : "");
-            IsSearching = false;
+            if (IsLatest(version))
+            {
+                IsSearching = false;
+            }
+
             OnPropertyChanged(nameof(ShowNothingFound));
         });
     }
+
+    private bool IsLatest(int version) => version == Volatile.Read(ref _version);
 
     private async Task ShowAsync(MessageRowViewModel? row)
     {
