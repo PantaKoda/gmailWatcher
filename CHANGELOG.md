@@ -4,6 +4,8 @@ What changed in each Gmail Watcher release. The section for a version becomes it
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-10
+
 ### Fixed
 - **Mail in older text encodings showed as gibberish** (for example `Êáëçìýñá` instead of `Καλημέρα`). Greek mail sent as ISO-8859-7 or Windows-1253, and likewise Cyrillic, Central European and Asian mail in older encodings, is now read correctly in the message view, the message list and search. Mail you already downloaded is repaired automatically at the start of the next sync ("Improving the text of saved mail"): the saved `.eml` files were never affected, only the subjects, sender names and search entries made from them.
 

@@ -8,7 +8,7 @@ A Windows desktop app that makes a **complete, local, searchable backup of your 
 - **Verify** proves the backup is complete and intact *before* you delete anything.
 - Looks and updates like [Repo Watch](../repo-watch): the same space-station HUD theme and accent colors, and updates straight from GitHub releases.
 
-Status: version 0.1.1, Windows 10/11 x64. See [Limitations](#limitations-and-what-was-not-verified).
+Status: version 0.1.2, Windows 10/11 x64. See [Limitations](#limitations-and-what-was-not-verified).
 
 ## The safety model, in five lines
 
