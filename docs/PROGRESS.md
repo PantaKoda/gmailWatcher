@@ -62,6 +62,8 @@ The Google client is tested against scripted HTTP fixtures built from Google's d
 
 ## Not done / left to the user
 
+- The first release is **0.1.1**. A `v0.1.0` tag exists on GitHub (it points at the initial commit) but was never released: its release build caught a real bug
+  (see Gotchas) and the fix shipped as 0.1.1 rather than moving a published tag. Don't build on `v0.1.0`; it may be deleted when convenient.
 - Releases: push a tag `vX.Y.Z` that matches `<Version>` in `Directory.Build.props` and has a `## [X.Y.Z]` section in `CHANGELOG.md`;
   `.github/workflows/release.yml` builds, tests and publishes the zip that the in-app updater reads.
 - Before publishing anything from this repo: never commit `client_secret*.json`, `gmailwatcher.config.json`, archives, or `.duckdb` files (all git-ignored),

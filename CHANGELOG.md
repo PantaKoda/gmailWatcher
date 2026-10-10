@@ -4,7 +4,7 @@ What changed in each Gmail Watcher release. The section for a version becomes it
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-10-10
+## [0.1.1] - 2026-10-10
 
 First release.
 
