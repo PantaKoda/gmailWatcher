@@ -104,3 +104,8 @@ Gmail Watcher has no telemetry and no server. It talks to Google (`accounts.goog
 - Chat messages and other items the Gmail API doesn't list can't be archived.
 - No tray icon or start-at-login: syncing happens while the window is open.
 - Search results are the newest-first matches; there is no relevance ranking.
+
+## License
+
+Gmail Watcher is released under the [MIT License](LICENSE): you may use, change and share it, as long as the copyright notice stays with it. It comes with no warranty.
+The open-source packages it is built on are listed, with their licenses, in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

@@ -62,6 +62,12 @@ Invoke-Checked 'Publish' {
 }
 if (-not (Test-Path (Join-Path $publishDir 'GmailWatcher.exe'))) { throw 'The publish did not produce GmailWatcher.exe.' }
 
+# The license and the third-party notices travel with the program.
+foreach ($notice in 'LICENSE', 'THIRD-PARTY-NOTICES.md') {
+    if (-not (Test-Path (Join-Path $root $notice))) { throw "$notice is missing from the repository root." }
+    Copy-Item (Join-Path $root $notice) (Join-Path $publishDir $notice)
+}
+
 # Marks the folder as a release: only such a copy may replace itself with a newer release (in-app updates).
 # "files" lists everything the release ships (ordinal order), so removing a release deletes exactly these files and
 # never anything else that happens to share the folder.

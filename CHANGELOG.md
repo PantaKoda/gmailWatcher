@@ -4,6 +4,9 @@ What changed in each Gmail Watcher release. The section for a version becomes it
 
 ## [Unreleased]
 
+### Added
+- The MIT license and a list of the open-source packages Gmail Watcher uses now ship in the download (`LICENSE`, `THIRD-PARTY-NOTICES.md`).
+
 ## [0.1.1] - 2026-10-10
 
 First release.
