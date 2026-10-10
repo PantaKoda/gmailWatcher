@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+             x:Class="GmailWatcher.Desktop.Views.BrowseView"
+             x:DataType="vm:BrowseViewModel">
+  <DockPanel Margin="10,0,10,10">
+    <!-- Search -->
+    <Grid DockPanel.Dock="Top" Classes="filterbar" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" Margin="0,0,0,6">
+      <TextBox Name="SearchBox" Text="{Binding SearchText}" PlaceholderText="Search all mail   e.g.  invoice   from:ann   &quot;exact phrase&quot;   file:budget"
+               AutomationProperties.Name="Search the archive" />
+      <ComboBox Grid.Column="1" ItemsSource="{Binding Labels}" SelectedItem="{Binding SelectedLabel}" MinWidth="130" ToolTip.Tip="Only mail with this label"
+                AutomationProperties.Name="Label filter" />
+      <ToggleButton Grid.Column="2" IsChecked="{Binding OnlyWithAttachments}" ToolTip.Tip="Only messages with attachments" AutomationProperties.Name="Only messages with attachments">
+        <PathIcon Data="{StaticResource IconAttachment}" Width="14" Height="14" />
+      </ToggleButton>
+    </Grid>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="2,0,2,4">
+      <TextBlock Classes="secondary" Text="{Binding ResultText}" VerticalAlignment="Center" />
+      <ProgressBar Grid.Column="1" Classes="scan" Width="60" IsVisible="{Binding IsSearching}" />
+    </Grid>
+
+    <Grid ColumnDefinitions="2*,Auto,3*">
+      <!-- Results -->
+      <DockPanel>
+        <Button DockPanel.Dock="Bottom" Content="Show more" Command="{Binding LoadMoreCommand}" IsVisible="{Binding HasMore}" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center" Margin="0,6,0,0" />
+        <TextBlock DockPanel.Dock="Top" Text="Nothing found." IsVisible="{Binding ShowNothingFound}" Classes="secondary" Margin="6" />
+        <ListBox Classes="hud" ItemsSource="{Binding Results}" SelectedItem="{Binding Selected}" Background="Transparent" AutomationProperties.Name="Messages">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:MessageRowViewModel">
+              <StackPanel Spacing="1" AutomationProperties.Name="{Binding AutomationName}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                  <TextBlock Classes="title" Text="{Binding Sender}" FontSize="12.5" />
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5">
+                    <PathIcon Data="{StaticResource IconAttachment}" Width="10" Height="10" IsVisible="{Binding HasAttachments}" Foreground="{DynamicResource HudDimBrush}" />
+                    <TextBlock Classes="secondary" Text="{Binding DateText}" />
+                  </StackPanel>
+                </Grid>
+                <TextBlock Text="{Binding Subject}" TextTrimming="CharacterEllipsis" FontSize="12" />
+                <TextBlock Classes="secondary" Text="{Binding Snippet}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Border Classes="tag warn" IsVisible="{Binding RemoteDeleted}" ToolTip.Tip="Gmail no longer has this message. This is the only copy.">
+                    <TextBlock Text="NOT IN GMAIL" />
+                  </Border>
+                  <TextBlock Classes="secondary" Text="{Binding LabelsText}" />
+                </StackPanel>
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Width="6" Background="Transparent" />
+
+      <!-- The open message -->
+      <Border Grid.Column="2" Classes="card" Padding="12,10">
+        <Panel>
+          <TextBlock Text="Select a message to read it." Classes="secondary" IsVisible="{Binding !HasPreview}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+          <ContentControl Content="{Binding Preview}" IsVisible="{Binding HasPreview}">
+            <ContentControl.ContentTemplate>
+              <DataTemplate x:DataType="vm:MessagePreviewViewModel">
+                <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,8">
+              <TextBlock Text="{Binding Subject}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding From, StringFormat='From: {0}'}" TextWrapping="Wrap" FontSize="12" />
+              <TextBlock Text="{Binding To, StringFormat='To: {0}'}" TextWrapping="Wrap" FontSize="12" />
+              <TextBlock Text="{Binding Cc, StringFormat='Cc: {0}'}" TextWrapping="Wrap" FontSize="12" IsVisible="{Binding HasCc}" />
+              <TextBlock Text="{Binding Date}" Classes="secondary" />
+              <TextBlock Text="{Binding LabelsText}" Classes="secondary" />
+              <Border Classes="tag warn" IsVisible="{Binding GoneFromGmail}" HorizontalAlignment="Left" ToolTip.Tip="Gmail no longer has this message. This archive holds the only copy.">
+                <TextBlock Text="NOT IN GMAIL ANY MORE · THIS IS THE ONLY COPY" />
+              </Border>
+              <TextBlock Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Classes="bad" TextWrapping="Wrap" />
+              <WrapPanel ItemSpacing="8" LineSpacing="6" Margin="0,4,0,0">
+                <Button Content="Show .eml file" Command="{Binding ShowFileCommand}" ToolTip.Tip="The complete message exactly as Gmail has it" />
+                <Button Content="Open in mail app" Command="{Binding OpenInMailAppCommand}" />
+              </WrapPanel>
+            </StackPanel>
+            <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Attachments}" IsVisible="{Binding HasAttachments}" Margin="0,8,0,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:AttachmentViewModel">
+                  <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8" Margin="0,2">
+                    <PathIcon Data="{StaticResource IconAttachment}" Width="12" Height="12" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="{Binding FileName}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Detail}" Classes="secondary" />
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="Open" Command="{Binding OpenCommand}" IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding OpenTooltip}" />
+                    <Button Grid.Column="3" Content="Show" Command="{Binding RevealCommand}" IsEnabled="{Binding IsSaved}" ToolTip.Tip="Show the file in its folder" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <ScrollViewer>
+              <SelectableTextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+            </ScrollViewer>
+                </DockPanel>
+              </DataTemplate>
+            </ContentControl.ContentTemplate>
+          </ContentControl>
+        </Panel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

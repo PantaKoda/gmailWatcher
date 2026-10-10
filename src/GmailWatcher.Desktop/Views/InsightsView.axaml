@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+             xmlns:c="using:GmailWatcher.Desktop.Controls"
+             x:Class="GmailWatcher.Desktop.Views.InsightsView"
+             x:DataType="vm:InsightsViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="10,0,10,16" Spacing="12">
+      <ProgressBar Classes="scan" IsVisible="{Binding IsLoading}" />
+      <TextBlock IsVisible="{Binding IsLoading}" Text="Reading the archive…" Classes="secondary" />
+      <TextBlock IsVisible="{Binding ShowEmpty}" TextWrapping="Wrap" Text="Nothing to analyze yet. Sync this account first." />
+      <TextBlock IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Text="{Binding Problem}" Classes="bad" TextWrapping="Wrap" />
+
+      <StackPanel IsVisible="{Binding ShowContent}" Spacing="12">
+        <TextBlock Text="{Binding Headline}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+
+        <Border Classes="card">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="hud" Text="MAIL PER MONTH" />
+            <c:BarChart Values="{Binding MonthValues}" Height="90" />
+            <TextBlock Classes="secondary" Text="{Binding MonthCaption}" TextTrimming="None" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
+        <TextBlock IsVisible="{Binding DuplicatesText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Text="{Binding DuplicatesText}" TextWrapping="Wrap" />
+
+        <ItemsControl ItemsSource="{Binding Lists}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:RankList">
+              <Border Classes="card" Width="360" Margin="0,0,10,10" IsVisible="{Binding HasRows}">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Caption}" Classes="secondary" />
+                  <ItemsControl ItemsSource="{Binding Rows}" Margin="0,4,0,0">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:RankRow">
+                        <StackPanel Margin="0,0,0,6">
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" FontSize="12" />
+                            <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" FontWeight="SemiBold" />
+                          </Grid>
+                          <ProgressBar Classes="sync" Minimum="0" Maximum="100" Value="{Binding Percent}" Margin="0,2,0,0" Height="3" MinHeight="3" />
+                          <TextBlock Text="{Binding Detail}" Classes="secondary" IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
+                   Text="{Binding DatabasePath, StringFormat='These answers come from DuckDB. The same data is in {0}: open it with the DuckDB command line, Python or DBeaver for your own questions (close or wait for any sync first).'}" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

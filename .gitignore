@@ -1,0 +1,26 @@
+bin/
+obj/
+artifacts/
+TestResults/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local configuration and secrets: never commit
+appsettings.Local.json
+client_secret*.json
+gmailwatcher.config.json
+*.pem
+*.pfx
+*.snk
+.env
+.env.*
+
+# Mail archives and analytics databases are personal data
+*.eml
+*.duckdb
+*.duckdb.wal
+archive.db*

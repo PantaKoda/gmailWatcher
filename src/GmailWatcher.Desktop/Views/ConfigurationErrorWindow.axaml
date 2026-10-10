@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+        x:Class="GmailWatcher.Desktop.Views.ConfigurationErrorWindow"
+        x:DataType="vm:ConfigurationErrorViewModel"
+        Title="Gmail Watcher — configuration problem"
+        Width="520" SizeToContent="Height" MaxHeight="700"
+        WindowStartupLocation="CenterScreen">
+  <DockPanel Margin="20">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+      <Button Content="Open configuration folder" Click="OnOpenFolderClick" />
+      <Button Content="Quit" IsDefault="True" Click="OnQuitClick" />
+    </StackPanel>
+    <StackPanel Spacing="10">
+      <TextBlock Text="Gmail Watcher can't start because its configuration is invalid." FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Errors}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ConfigurationErrorViewModel+ErrorItem">
+            <StackPanel Margin="0,4" Spacing="2">
+              <SelectableTextBlock FontWeight="SemiBold" Text="{Binding Key}" />
+              <SelectableTextBlock Text="{Binding Problem}" TextWrapping="Wrap" />
+              <SelectableTextBlock Text="{Binding Fix}" TextWrapping="Wrap" Opacity="0.8" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="Configuration is read from, in increasing precedence:" Margin="0,8,0,0" />
+      <SelectableTextBlock Text="{Binding Sources}" TextWrapping="Wrap" Opacity="0.8" />
+    </StackPanel>
+  </DockPanel>
+</Window>

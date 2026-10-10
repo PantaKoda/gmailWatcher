@@ -1,0 +1,424 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:GmailWatcher.Desktop.Controls"
+             x:Class="GmailWatcher.Desktop.App"
+             RequestedThemeVariant="Default">
+  <!--
+    "Space station" visual language, shared with Repo Watch: deep-space surfaces, a cyan HUD accent, neon status colors.
+    Motion is reserved for activity (syncing, refreshing) and is switched off for any window carrying the "reduce-motion"
+    class. Nothing animates while the app is idle.
+  -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="StatusSuccessBrush" Color="#087050" />
+          <SolidColorBrush x:Key="StatusFailureBrush" Color="#BD1F3F" />
+          <SolidColorBrush x:Key="StatusWarningBrush" Color="#8F5500" />
+          <SolidColorBrush x:Key="StatusRunningBrush" Color="#00698A" />
+          <SolidColorBrush x:Key="StatusNeutralBrush" Color="#5E6C84" />
+          <SolidColorBrush x:Key="StatusUnknownBrush" Color="#5E6C84" />
+
+          <LinearGradientBrush x:Key="SpaceSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#F5F9FD" Offset="0" />
+            <GradientStop Color="#E3ECF6" Offset="1" />
+          </LinearGradientBrush>
+          <SolidColorBrush x:Key="HudAccentBrush" Color="#006F8E" />
+          <SolidColorBrush x:Key="HudFrameBrush" Color="#66006F8E" />
+          <SolidColorBrush x:Key="HudDimBrush" Color="#56637A" />
+          <SolidColorBrush x:Key="StarBrush" Color="#30203A55" />
+          <SolidColorBrush x:Key="RowHoverBrush" Color="#14006F8E" />
+          <SolidColorBrush x:Key="PanelBrush" Color="#0A006F8E" />
+          <BoxShadows x:Key="HudGlowShadow">0 0 6 0 #33006F8E</BoxShadows>
+
+          <SolidColorBrush x:Key="WidgetSurfaceBrush" Color="#F5F9FD" />
+          <SolidColorBrush x:Key="WidgetBorderBrush" Color="#55006F8E" />
+          <SolidColorBrush x:Key="DemoBannerBrush" Color="#26FFB547" />
+          <SolidColorBrush x:Key="DemoBannerForegroundBrush" Color="#6B4200" />
+          <SolidColorBrush x:Key="SafeBannerBrush" Color="#1A087050" />
+          <SolidColorBrush x:Key="DangerForegroundBrush" Color="#FFFFFF" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="StatusSuccessBrush" Color="#3DFFA2" />
+          <SolidColorBrush x:Key="StatusFailureBrush" Color="#FF4D6D" />
+          <SolidColorBrush x:Key="StatusWarningBrush" Color="#FFB547" />
+          <SolidColorBrush x:Key="StatusRunningBrush" Color="#3FE0FF" />
+          <SolidColorBrush x:Key="StatusNeutralBrush" Color="#7C8BA6" />
+          <SolidColorBrush x:Key="StatusUnknownBrush" Color="#7C8BA6" />
+
+          <LinearGradientBrush x:Key="SpaceSurfaceBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#0E1B30" Offset="0" />
+            <GradientStop Color="#060A14" Offset="1" />
+          </LinearGradientBrush>
+          <SolidColorBrush x:Key="HudAccentBrush" Color="#3FE0FF" />
+          <SolidColorBrush x:Key="HudFrameBrush" Color="#803FE0FF" />
+          <SolidColorBrush x:Key="HudDimBrush" Color="#A6B4CF" />
+          <SolidColorBrush x:Key="StarBrush" Color="#D8E9FF" />
+          <SolidColorBrush x:Key="RowHoverBrush" Color="#1A3FE0FF" />
+          <SolidColorBrush x:Key="PanelBrush" Color="#0D3FE0FF" />
+          <BoxShadows x:Key="HudGlowShadow">0 0 6 0 #553FE0FF</BoxShadows>
+
+          <SolidColorBrush x:Key="WidgetSurfaceBrush" Color="#0B1322" />
+          <SolidColorBrush x:Key="WidgetBorderBrush" Color="#4D3FE0FF" />
+          <SolidColorBrush x:Key="DemoBannerBrush" Color="#2EFFB547" />
+          <SolidColorBrush x:Key="DemoBannerForegroundBrush" Color="#FFD28A" />
+          <SolidColorBrush x:Key="SafeBannerBrush" Color="#1F3DFFA2" />
+          <SolidColorBrush x:Key="DangerForegroundBrush" Color="#0B1322" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!--
+        Visual tokens: one place for spacing, radii and type sizes. Colors live in the theme dictionaries above; the accent
+        overrides the HUD brushes at runtime (AccentPalette), status colors never change.
+      -->
+      <CornerRadius x:Key="RadiusSmall">6</CornerRadius>
+      <CornerRadius x:Key="RadiusMedium">8</CornerRadius>
+      <CornerRadius x:Key="RadiusLarge">14</CornerRadius>
+      <x:Double x:Key="FontSizeCaption">11</x:Double>
+      <x:Double x:Key="FontSizeCaptionCompact">10</x:Double>
+      <x:Double x:Key="FontSizeTitleCompact">12.5</x:Double>
+      <x:Double x:Key="FontSizeHeading">15</x:Double>
+      <x:Double x:Key="FontSizeMetric">20</x:Double>
+      <Thickness x:Key="RowPadding">10,8</Thickness>
+      <Thickness x:Key="RowPaddingCompact">8,3</Thickness>
+      <Thickness x:Key="ItemPadding">8,6</Thickness>
+      <Thickness x:Key="ItemPaddingCompact">6,3</Thickness>
+
+      <!-- Icon geometries from Material Design Icons (Apache License 2.0). -->
+      <StreamGeometry x:Key="IconRefresh">M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z</StreamGeometry>
+      <StreamGeometry x:Key="IconSync">M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z</StreamGeometry>
+      <StreamGeometry x:Key="IconSettings">M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.61l-1.92-3.32a.5.5 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54A.48.48 0 0 0 13.92 2h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.73 8.47a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.08.63-.08.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z</StreamGeometry>
+      <StreamGeometry x:Key="IconMinimize">M6 11h12v2H6z</StreamGeometry>
+      <StreamGeometry x:Key="IconMaximize">M5 5h14v14H5V5zm2 2v10h10V7H7z</StreamGeometry>
+      <StreamGeometry x:Key="IconClose">M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z</StreamGeometry>
+      <StreamGeometry x:Key="IconOpenExternal">M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zm5 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7z</StreamGeometry>
+      <StreamGeometry x:Key="IconUpdate">M12 16.5l4-4h-3v-9h-2v9H8l4 4zm9-13h-6v1.99h6v14.03H3V5.49h6V3.5H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2v-14c0-1.1-.9-2-2-2z</StreamGeometry>
+      <StreamGeometry x:Key="IconBack">M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z</StreamGeometry>
+      <StreamGeometry x:Key="IconAdd">M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z</StreamGeometry>
+      <StreamGeometry x:Key="IconFolder">M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z</StreamGeometry>
+      <StreamGeometry x:Key="IconSearch">M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z</StreamGeometry>
+      <StreamGeometry x:Key="IconAttachment">M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z</StreamGeometry>
+      <StreamGeometry x:Key="IconShieldCheck">M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z</StreamGeometry>
+      <StreamGeometry x:Key="IconChart">M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z</StreamGeometry>
+      <StreamGeometry x:Key="IconStop">M6 6h12v12H6z</StreamGeometry>
+      <StreamGeometry x:Key="IconMore">M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z</StreamGeometry>
+      <StreamGeometry x:Key="IconMail">M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z</StreamGeometry>
+      <StreamGeometry x:Key="IconWarning">M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z</StreamGeometry>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#FF1FB8D6" RegionColor="#FF070C18" />
+        <ColorPaletteResources x:Key="Light" Accent="#FF006F8E" RegionColor="#FFF5F9FD" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+
+
+    <!-- The window's resize edges and corners: invisible, but they take the pointer. -->
+    <Style Selector="Border.resize">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <!-- Compact icon-only buttons; each has a tooltip and an accessible name. -->
+    <Style Selector="Button.icon">
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="MinWidth" Value="28" />
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="CornerRadius" Value="{StaticResource RadiusSmall}" />
+      <Setter Property="Foreground" Value="{DynamicResource HudDimBrush}" />
+    </Style>
+    <Style Selector="Button.icon:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource RowHoverBrush}" />
+    </Style>
+    <Style Selector="Button.icon:pointerover">
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+    </Style>
+    <Style Selector="Button.icon PathIcon">
+      <Setter Property="Width" Value="14" />
+      <Setter Property="Height" Value="14" />
+    </Style>
+    <Style Selector="Button.icon.danger:pointerover">
+      <Setter Property="Foreground" Value="{DynamicResource StatusFailureBrush}" />
+    </Style>
+
+    <!--
+      An action the user asked for (a sync, a refresh): the icon takes the theme's accent and turns until it finishes (it
+      only changes color with reduced motion). It stops with the work, so nothing spins while idle.
+    -->
+    <Style Selector="Button.icon.spinning PathIcon">
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+    </Style>
+    <Style Selector="Window:not(.reduce-motion) Button.icon.spinning PathIcon">
+      <Style.Animations>
+        <Animation Duration="0:0:0.9" IterationCount="INFINITE">
+          <KeyFrame Cue="0%">
+            <Setter Property="RotateTransform.Angle" Value="0" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="RotateTransform.Angle" Value="360" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <!-- Header "Update" pill: accent outline and text, fully opaque. -->
+    <Style Selector="Button.update">
+      <Setter Property="Padding" Value="7,2" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+      <Setter Property="MinHeight" Value="22" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource HudAccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+    </Style>
+    <Style Selector="Button.update:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource RowHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource HudAccentBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+    </Style>
+
+
+    <!-- A button that does something that cannot be undone: red like the failure status, with text that keeps its contrast. -->
+    <Style Selector="Button.accent.danger /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource StatusFailureBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource StatusFailureBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource DangerForegroundBrush}" />
+    </Style>
+    <Style Selector="Button.accent.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource StatusFailureBrush}" />
+      <Setter Property="Opacity" Value="0.88" />
+      <Setter Property="Foreground" Value="{DynamicResource DangerForegroundBrush}" />
+    </Style>
+    <Style Selector="Button.accent.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource StatusFailureBrush}" />
+      <Setter Property="Opacity" Value="0.75" />
+      <Setter Property="Foreground" Value="{DynamicResource DangerForegroundBrush}" />
+    </Style>
+    <Style Selector="Button.accent.danger:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Opacity" Value="0.4" />
+    </Style>
+    <!-- An account (or any grouped content): a panel with a thin HUD frame. -->
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource HudFrameBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+      <Setter Property="Padding" Value="14,12" />
+    </Style>
+    <Style Selector="Border.card.attention">
+      <Setter Property="BorderBrush" Value="{DynamicResource StatusWarningBrush}" />
+    </Style>
+    <Style Selector="Border.card.safe">
+      <Setter Property="BorderBrush" Value="{DynamicResource StatusSuccessBrush}" />
+    </Style>
+
+    <!-- A small outlined tag. Discreet: dim text, thin frame. -->
+    <Style Selector="Border.tag">
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="5,0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource HudFrameBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.tag TextBlock">
+      <Setter Property="FontSize" Value="9.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LetterSpacing" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource HudDimBrush}" />
+    </Style>
+    <Style Selector="Border.tag.accent">
+      <Setter Property="BorderBrush" Value="{DynamicResource HudAccentBrush}" />
+    </Style>
+    <Style Selector="Border.tag.accent TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+    </Style>
+    <Style Selector="Border.tag.warn">
+      <Setter Property="BorderBrush" Value="{DynamicResource StatusWarningBrush}" />
+    </Style>
+    <Style Selector="Border.tag.warn TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource StatusWarningBrush}" />
+    </Style>
+
+    <!-- Repository-style list rows: soft hover glow with a short transition. -->
+    <Style Selector="ListBox.hud ListBoxItem">
+      <Setter Property="Padding" Value="{StaticResource RowPadding}" />
+      <Setter Property="Margin" Value="0,1" />
+      <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+    </Style>
+    <Style Selector="ListBox.hud ListBoxItem /template/ ContentPresenter">
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.18" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="ListBox.hud ListBoxItem:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource RowHoverBrush}" />
+    </Style>
+    <Style Selector="ListBox.hud ListBoxItem:selected /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource HudFrameBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- Full-width list rows that act as buttons. -->
+    <Style Selector="Button.row">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="{StaticResource ItemPadding}" />
+      <Setter Property="CornerRadius" Value="{StaticResource RadiusSmall}" />
+    </Style>
+    <Style Selector="Button.row:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource RowHoverBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.secondary">
+      <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
+      <Setter Property="Foreground" Value="{DynamicResource HudDimBrush}" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="TextBlock.title">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="TextBlock.heading">
+      <Setter Property="FontSize" Value="{StaticResource FontSizeHeading}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,12,0,4" />
+    </Style>
+    <Style Selector="TextBlock.metric">
+      <Setter Property="FontSize" Value="{StaticResource FontSizeMetric}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <!-- HUD labels: small, wide-tracked, accent colored. Text is written in uppercase. -->
+    <Style Selector="TextBlock.hud">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LetterSpacing" Value="2" />
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+    </Style>
+    <Style Selector="TextBlock.brand">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="LetterSpacing" Value="3" />
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+    </Style>
+    <Style Selector="TextBlock.good">
+      <Setter Property="Foreground" Value="{DynamicResource StatusSuccessBrush}" />
+    </Style>
+    <Style Selector="TextBlock.bad">
+      <Setter Property="Foreground" Value="{DynamicResource StatusFailureBrush}" />
+    </Style>
+    <Style Selector="TextBlock.warn">
+      <Setter Property="Foreground" Value="{DynamicResource StatusWarningBrush}" />
+    </Style>
+    <Style Selector="PathIcon.good">
+      <Setter Property="Foreground" Value="{DynamicResource StatusSuccessBrush}" />
+    </Style>
+    <Style Selector="PathIcon.warn">
+      <Setter Property="Foreground" Value="{DynamicResource StatusWarningBrush}" />
+    </Style>
+    <Style Selector="PathIcon.bad">
+      <Setter Property="Foreground" Value="{DynamicResource StatusFailureBrush}" />
+    </Style>
+
+    <!-- Compact density: tighter rows and smaller captions; the same information stays visible. -->
+    <Style Selector="Window.compact ListBox.hud ListBoxItem">
+      <Setter Property="Padding" Value="{StaticResource RowPaddingCompact}" />
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="Window.compact Button.row">
+      <Setter Property="Padding" Value="{StaticResource ItemPaddingCompact}" />
+    </Style>
+    <Style Selector="Window.compact Border.card">
+      <Setter Property="Padding" Value="10,7" />
+    </Style>
+    <Style Selector="Window.compact TextBlock.secondary">
+      <Setter Property="FontSize" Value="{StaticResource FontSizeCaptionCompact}" />
+    </Style>
+    <Style Selector="Window.compact TextBlock.title">
+      <Setter Property="FontSize" Value="{StaticResource FontSizeTitleCompact}" />
+    </Style>
+
+    <!-- Filter bar: compact controls that sit on the HUD surface. -->
+    <Style Selector="Grid.filterbar TextBox">
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <!-- The placeholder is dimmed by color, not by the theme's half opacity: text stays fully opaque. -->
+    <Style Selector="Grid.filterbar TextBox /template/ TextBlock">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource HudDimBrush}" />
+    </Style>
+    <Style Selector="Grid.filterbar ComboBox">
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Grid.filterbar ToggleButton">
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="6,3" />
+    </Style>
+
+    <!-- Scan line: a thin indeterminate bar shown only while something is active. -->
+    <Style Selector="ProgressBar.scan">
+      <Setter Property="Height" Value="2" />
+      <Setter Property="MinHeight" Value="2" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+      <Setter Property="IsIndeterminate" Value="True" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style Selector="Window.reduce-motion ProgressBar.scan">
+      <Setter Property="IsIndeterminate" Value="False" />
+      <Setter Property="Value" Value="100" />
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
+    <!-- Determinate progress of a sync: a slim accent bar on a frame-colored track. -->
+    <Style Selector="ProgressBar.sync">
+      <Setter Property="Height" Value="4" />
+      <Setter Property="MinHeight" Value="4" />
+      <Setter Property="Background" Value="{DynamicResource HudFrameBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource HudAccentBrush}" />
+      <Setter Property="CornerRadius" Value="2" />
+    </Style>
+
+    <!-- Running work radiates: an outward pulse on its status dot. -->
+    <Style Selector="Window:not(.reduce-motion) c|StatusDot:active">
+      <Style.Animations>
+        <Animation Duration="0:0:1.6" IterationCount="INFINITE">
+          <KeyFrame Cue="0%">
+            <Setter Property="Pulse" Value="0" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="Pulse" Value="1" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <!-- Details slide in when opened. -->
+    <Style Selector="Window:not(.reduce-motion) DockPanel.details[IsVisible=True]">
+      <Style.Animations>
+        <Animation Duration="0:0:0.22" Easing="CubicEaseOut" FillMode="Forward">
+          <KeyFrame Cue="0%">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="TranslateTransform.X" Value="16" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="TranslateTransform.X" Value="0" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+  </Application.Styles>
+</Application>

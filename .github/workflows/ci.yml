@@ -1,0 +1,54 @@
+name: CI
+
+# Every push to main and every pull request is built and tested. Also runnable by hand.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same pull request or branch replaces a run still in progress.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  windows:
+    # Windows is the delivery target: full build and all tests (including the headless UI renders).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet restore GmailWatcher.slnx --locked-mode
+      - run: dotnet build GmailWatcher.slnx --configuration Release --no-restore
+      - run: dotnet test --solution GmailWatcher.slnx --configuration Release --no-build
+
+  windows-release:
+    # The portable release zip, built by the same script maintainers use. Uploaded as a workflow
+    # artifact for inspection only: publishing a GitHub release stays a deliberate tag push.
+    # Skipped for pull requests (main and manual runs only) to keep checks quick.
+    if: github.event_name != 'pull_request'
+    needs: windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: pwsh scripts/publish-windows.ps1 -SkipTests
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gmailwatcher-win-x64
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/*.sha256
+          if-no-files-found: error

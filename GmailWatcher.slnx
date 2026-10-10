@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GmailWatcher.Core/GmailWatcher.Core.csproj" />
+    <Project Path="src/GmailWatcher.Google/GmailWatcher.Google.csproj" />
+    <Project Path="src/GmailWatcher.Archive/GmailWatcher.Archive.csproj" />
+    <Project Path="src/GmailWatcher.Desktop/GmailWatcher.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GmailWatcher.Core.Tests/GmailWatcher.Core.Tests.csproj" />
+    <Project Path="tests/GmailWatcher.Google.Tests/GmailWatcher.Google.Tests.csproj" />
+    <Project Path="tests/GmailWatcher.Archive.Tests/GmailWatcher.Archive.Tests.csproj" />
+    <Project Path="tests/GmailWatcher.Desktop.Tests/GmailWatcher.Desktop.Tests.csproj" />
+  </Folder>
+</Solution>

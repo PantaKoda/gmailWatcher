@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GmailWatcher.Desktop\GmailWatcher.Desktop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Headless UI tests render with Skia so screenshots show real output. -->
+    <PackageReference Include="Avalonia.Headless.XUnit" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+</Project>

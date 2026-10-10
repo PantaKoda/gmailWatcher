@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+        x:Class="GmailWatcher.Desktop.Views.GoogleSetupWindow"
+        x:DataType="vm:GoogleSetupViewModel"
+        Title="Set up Google sign-in"
+        Width="640" Height="720" MinWidth="460" MinHeight="420"
+        WindowStartupLocation="CenterOwner">
+  <ScrollViewer>
+    <StackPanel Margin="26,18,26,24" Spacing="10">
+      <TextBlock Text="Set up Google sign-in" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock TextWrapping="Wrap"
+                 Text="Google requires every app that reads Gmail to have its own OAuth client. You create one once, free, in your own Google Cloud project (about five minutes). It is used only by Gmail Watcher on this PC, and nothing is sent anywhere but to Google." />
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="hud" Text="STEPS" />
+
+          <TextBlock TextWrapping="Wrap" FontWeight="SemiBold" Text="1.  Create a project" />
+          <TextBlock TextWrapping="Wrap" Classes="secondary" TextTrimming="None" Text="Any name will do, for example Gmail Watcher." />
+          <Button Content="Open Google Cloud: new project" Command="{Binding OpenProjectCommand}" HorizontalAlignment="Left" />
+
+          <TextBlock TextWrapping="Wrap" FontWeight="SemiBold" Text="2.  Turn on the Gmail API" Margin="0,6,0,0" />
+          <Button Content="Open the Gmail API page, then press Enable" Command="{Binding OpenGmailApiCommand}" HorizontalAlignment="Left" />
+
+          <TextBlock TextWrapping="Wrap" FontWeight="SemiBold" Text="3.  Set up the consent screen" Margin="0,6,0,0" />
+          <TextBlock TextWrapping="Wrap" Classes="secondary" TextTrimming="None"
+                     Text="Choose the External user type and fill in the name and your email. Add the scope gmail.readonly (View your email messages and settings). Add your own Gmail addresses as test users." />
+          <Border Classes="card attention" Padding="10,8">
+            <TextBlock TextWrapping="Wrap" FontSize="12"
+                       Text="Important: finally set the publishing status to In production (Audience page, Publish app). While it says Testing, Google ends the sign-in after 7 days and you would have to reconnect every week. You don't need to submit the app for verification: it is your own app, and Google will show an “unverified app” warning when you sign in (choose Advanced, then Go to the app)." />
+          </Border>
+          <Button Content="Open the consent screen settings" Command="{Binding OpenConsentCommand}" HorizontalAlignment="Left" />
+
+          <TextBlock TextWrapping="Wrap" FontWeight="SemiBold" Text="4.  Create the OAuth client" Margin="0,6,0,0" />
+          <TextBlock TextWrapping="Wrap" Classes="secondary" TextTrimming="None"
+                     Text="Create credentials, OAuth client ID, Application type: Desktop app. Then either download the JSON file (the download button in the confirmation), or copy the Client ID and Client secret." />
+          <Button Content="Open the credentials page" Command="{Binding OpenCredentialsCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+
+      <TextBlock Classes="heading" Text="Give the client to Gmail Watcher" />
+      <Button Content="Import the downloaded JSON file…" Command="{Binding ImportFileCommand}" HorizontalAlignment="Left" />
+      <TextBlock Classes="secondary" TextTrimming="None" Text="or paste the two values:" />
+      <TextBlock Text="Client ID" FontWeight="SemiBold" />
+      <TextBox Text="{Binding ClientId}" PlaceholderText="1234567890-abcdef.apps.googleusercontent.com" AutomationProperties.Name="Client ID" />
+      <TextBlock Text="Client secret" FontWeight="SemiBold" />
+      <TextBox Text="{Binding ClientSecret}" PasswordChar="•" PlaceholderText="GOCSPX-…" AutomationProperties.Name="Client secret" />
+      <TextBlock Classes="secondary" TextTrimming="None" TextWrapping="Wrap"
+                 Text="For a Desktop app, Google documents the secret as not confidential. It is kept in this app's settings file on this PC, never in the archive." />
+      <TextBlock Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Classes="bad" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <Button Content="Cancel" Click="OnCancelClick" />
+        <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

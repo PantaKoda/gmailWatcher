@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Gmail over plain HTTPS: OAuth (PKCE, loopback redirect) and the read-only REST calls. No Google SDK packages. -->
+  <PropertyGroup>
+    <RootNamespace>GmailWatcher.Google</RootNamespace>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GmailWatcher.Core\GmailWatcher.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="GmailWatcher.Google.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+        x:Class="GmailWatcher.Desktop.Views.ConnectWindow"
+        x:DataType="vm:ConnectViewModel"
+        Title="Sign in with Google"
+        Width="500" Height="360" MinWidth="380" MinHeight="300"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="24,20,24,20" Spacing="12">
+    <TextBlock Text="{Binding Heading}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <TextBlock Text="{Binding Instruction}" TextWrapping="Wrap" IsVisible="{Binding IsWaiting}" />
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsWaiting}" Height="4" MinHeight="4" />
+
+    <!-- The link, for when the browser did not open by itself -->
+    <StackPanel IsVisible="{Binding HasLink}" Spacing="6">
+      <TextBlock Classes="secondary" TextTrimming="None" TextWrapping="Wrap"
+                 Text="Nothing opened? Copy this link into a browser to sign in. It is only valid for this sign-in." />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBox Text="{Binding AuthorizationLink, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="Sign-in link" />
+        <Button Grid.Column="1" Content="Copy link" Command="{Binding CopyLinkCommand}" />
+      </Grid>
+    </StackPanel>
+
+    <!-- What went wrong -->
+    <StackPanel IsVisible="{Binding HasError}" Spacing="8">
+      <TextBlock Text="{Binding Error}" Classes="bad" TextWrapping="Wrap" />
+      <Button Content="Try again" Command="{Binding TryAgainCommand}" Classes="accent" HorizontalAlignment="Left" />
+    </StackPanel>
+
+    <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None" IsVisible="{Binding IsWaiting}"
+               Text="Gmail Watcher asks only to read your mail. It can't send, delete or change anything, and you can withdraw access any time at myaccount.google.com/permissions." />
+
+    <Button Content="Cancel" Command="{Binding CancelCommand}" HorizontalAlignment="Right" />
+  </StackPanel>
+</Window>

@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+             x:Class="GmailWatcher.Desktop.Views.OverviewView"
+             x:DataType="vm:AccountDetailsViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="10,0,10,16" Spacing="12">
+
+      <!-- Can this archive replace the mailbox? -->
+      <Border Classes="card" Classes.safe="{Binding Row.VerifyIsGood}" Classes.attention="{Binding Row.VerifyIsWarning}">
+        <StackPanel Spacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <PathIcon Data="{StaticResource IconShieldCheck}" Width="18" Height="18" VerticalAlignment="Center"
+                      Classes.good="{Binding Row.VerifyIsGood}" Classes.warn="{Binding Row.VerifyIsWarning}" Classes.bad="{Binding Row.VerifyIsBad}" />
+            <TextBlock Text="{Binding VerifyHeadline}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"
+                       Classes.good="{Binding Row.VerifyIsGood}" Classes.warn="{Binding Row.VerifyIsWarning}" Classes.bad="{Binding Row.VerifyIsBad}" />
+          </StackPanel>
+          <TextBlock Text="{Binding VerifyDetail}" TextWrapping="Wrap" />
+          <WrapPanel ItemSpacing="8" LineSpacing="8">
+            <Button Command="{Binding VerifyCommand}" IsEnabled="{Binding Row.Display.CanVerify}" Classes="accent">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource IconShieldCheck}" Width="12" Height="12" />
+                <TextBlock Text="Verify now" />
+              </StackPanel>
+            </Button>
+            <Button Content="Download damaged messages again" Command="{Binding RepairCommand}" IsVisible="{Binding CanRepair}"
+                    ToolTip.Tip="Only possible for messages Gmail still has. The next sync downloads them again." />
+          </WrapPanel>
+          <TextBlock Text="{Binding RepairResult}" IsVisible="{Binding RepairResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" FontSize="12" />
+
+          <ItemsControl ItemsSource="{Binding Issues}" IsVisible="{Binding HasIssues}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:IssueItem">
+                <StackPanel Margin="0,4,0,0">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" />
+                  <TextBlock Text="{Binding Detail}" Classes="secondary" TextWrapping="Wrap" TextTrimming="None" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock IsVisible="{Binding HasMoreIssues}" Classes="secondary" Text="{Binding IssuesNotListed, StringFormat='…and {0} more.'}" />
+        </StackPanel>
+      </Border>
+
+      <!-- What is archived -->
+      <Border Classes="card">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="hud" Text="ARCHIVED" />
+          <ItemsControl ItemsSource="{Binding StatLines}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Text="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None" Text="{Binding SavedSettingsText}" Margin="0,4,0,0" />
+        </StackPanel>
+      </Border>
+
+      <!-- The safe way to empty Gmail -->
+      <Border Classes="card">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="hud" Text="BEFORE YOU EMPTY GMAIL" />
+          <TextBlock TextWrapping="Wrap" Text="1.  Sync, then Verify. It should say Verified, and it should be the latest check." />
+          <TextBlock TextWrapping="Wrap" Text="2.  Back up the archive folder (below) to another drive. Once Gmail is empty, this folder is the only copy of your mail." />
+          <TextBlock TextWrapping="Wrap" Text="3.  In Gmail on the web, search for in:anywhere (it includes Spam and Trash), select everything and delete it. Then open Trash and Spam and choose Empty now: deleted mail otherwise stays there for 30 days and still counts toward your storage." />
+          <TextBlock TextWrapping="Wrap" Text="4.  Come back any time: new mail is added at the next sync, and mail you deleted from Gmail stays in the archive." />
+          <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
+                     Text="Gmail Watcher can't delete anything in Gmail: it only has read-only access." />
+        </StackPanel>
+      </Border>
+
+      <!-- Where it lives, and housekeeping -->
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="hud" Text="THIS ARCHIVE" />
+          <SelectableTextBlock Text="{Binding FolderText}" TextWrapping="Wrap" />
+          <WrapPanel ItemSpacing="8" LineSpacing="8">
+            <Button Content="Open folder" Command="{Binding OpenFolderCommand}" />
+            <Button Content="Copy path" Command="{Binding CopyFolderCommand}" />
+            <Button Content="Re-check everything" Command="{Binding RecheckCommand}" IsEnabled="{Binding Row.Display.CanSync}"
+                    ToolTip.Tip="Lists the whole mailbox again and downloads anything missing. Slower than a normal sync; use it if you suspect something was skipped." />
+            <Button Content="Disconnect…" Command="{Binding DisconnectCommand}" IsVisible="{Binding !Row.Display.IsArchiveOnly}"
+                    ToolTip.Tip="Stop using Google for this account. The archive stays." />
+            <Button Content="Delete from this PC…" Command="{Binding DeleteArchiveCommand}"
+                    ToolTip.Tip="Permanently removes this account's downloaded mail from this PC. Gmail is not touched." />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

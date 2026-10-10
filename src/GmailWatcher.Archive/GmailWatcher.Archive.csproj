@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The local archive: SQLite (authoritative), files on disk, DuckDB (derived analytics), the sync engine. No UI. -->
+  <PropertyGroup>
+    <RootNamespace>GmailWatcher.Archive</RootNamespace>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GmailWatcher.Core\GmailWatcher.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DuckDB.NET.Data.Full" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="MimeKit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="GmailWatcher.Archive.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,65 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+        x:Class="GmailWatcher.Desktop.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="Gmail Watcher settings"
+        Width="520" Height="680" MinWidth="360" MinHeight="320"
+        WindowStartupLocation="CenterScreen">
+  <ScrollViewer>
+    <StackPanel Margin="22,8,22,22" Spacing="6">
+      <Border IsVisible="{Binding HasStorageProblem}" Background="{DynamicResource DemoBannerBrush}" CornerRadius="4" Padding="10,6" Margin="0,8,0,0">
+        <TextBlock Text="{Binding StorageProblem}" TextWrapping="Wrap" Foreground="{DynamicResource DemoBannerForegroundBrush}" />
+      </Border>
+
+      <TextBlock Classes="heading" Text="Archive" />
+      <SelectableTextBlock Text="{Binding ArchiveDirectory}" TextWrapping="Wrap" />
+      <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
+                 Text="Everything lives in this folder: the database, the analytics file, every message and attachment. To move it, close Gmail Watcher, move the whole folder, then change Archive › Directory in gmailwatcher.config.json in the data folder (or set GMAILWATCHER__Archive__Directory)." />
+      <Button Content="Open archive folder" Command="{Binding OpenArchiveFolderCommand}" HorizontalAlignment="Left" />
+
+      <TextBlock Classes="heading" Text="Google" />
+      <TextBlock Text="{Binding GoogleStatus}" TextWrapping="Wrap" />
+      <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None" Text="{Binding CredentialText}" />
+      <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
+                 Text="Gmail Watcher asks Google for read-only access. You can withdraw it at any time at myaccount.google.com/permissions." />
+      <Button Content="Set up or change Google credentials…" Command="{Binding ChangeGoogleCommand}" HorizontalAlignment="Left" IsVisible="{Binding !IsDemo}" />
+
+      <TextBlock Classes="heading" Text="Syncing" />
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+        <TextBlock Text="Sync connected accounts" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding AutoSyncChoices}" SelectedItem="{Binding AutoSync}" MinWidth="200" AutomationProperties.Name="Automatic sync" />
+      </Grid>
+      <CheckBox Content="Also sync when Gmail Watcher starts" IsChecked="{Binding SyncOnStartup}" />
+      <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
+                 Text="Automatic syncing happens only while Gmail Watcher is open. Google limits how fast mail can be fetched (about 300 messages a minute per account), so a big first download takes hours. Stopping is always safe: what was downloaded is kept and the next sync continues." />
+
+      <TextBlock Classes="heading" Text="Appearance" />
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+        <TextBlock Text="Theme" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" MinWidth="160" AutomationProperties.Name="Theme" />
+        <TextBlock Grid.Row="1" Text="Accent" VerticalAlignment="Center" />
+        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Accents}" SelectedItem="{Binding Accent}" MinWidth="160" AutomationProperties.Name="Accent" />
+        <TextBlock Grid.Row="2" Text="Density" VerticalAlignment="Center" />
+        <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Densities}" SelectedItem="{Binding Density}" MinWidth="160" AutomationProperties.Name="Density" />
+        <TextBlock Grid.Row="3" Text="Motion" VerticalAlignment="Center" />
+        <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding MotionChoices}" SelectedItem="{Binding Motion}" MinWidth="160" AutomationProperties.Name="Motion" />
+      </Grid>
+      <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
+                 Text="Status colors (green, amber, red) never follow the accent. Motion only runs while something is working." />
+
+      <TextBlock Classes="heading" Text="About" />
+      <TextBlock Text="{Binding Version, StringFormat='Gmail Watcher {0}'}" />
+      <SelectableTextBlock Text="{Binding DataDirectory, StringFormat='Settings and logs: {0}'}" TextWrapping="Wrap" />
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <Button Content="Check for updates" Command="{Binding CheckForUpdatesCommand}" IsVisible="{Binding CanCheckForUpdates}" IsEnabled="{Binding !IsCheckingForUpdates}"
+                ToolTip.Tip="Looks for a newer release on GitHub. Installing is always your choice." />
+        <Button Content="Open data folder" Command="{Binding OpenDataFolderCommand}" />
+        <Button Content="Export diagnostics" Command="{Binding ExportDiagnosticsCommand}"
+                ToolTip.Tip="Saves versions, counts and redacted logs for a bug report. No mail, no tokens, no addresses." />
+        <Button Content="Quit Gmail Watcher" Command="{Binding QuitCommand}" />
+      </WrapPanel>
+      <TextBlock Text="{Binding ActionMessage}" IsVisible="{Binding HasActionMessage}" TextWrapping="Wrap" Classes="secondary" TextTrimming="None" />
+    </StackPanel>
+  </ScrollViewer>
+</Window>

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Shared domain and policy code. Must not reference Avalonia or OS-specific APIs. -->
+  <!--
+    Release RID. Listed here (not only on the publish command line) so packages.lock.json always
+    contains the RID-specific graph and a normal restore matches the one the release publish uses.
+  -->
+  <PropertyGroup>
+    <RootNamespace>GmailWatcher.Core</RootNamespace>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+</Project>

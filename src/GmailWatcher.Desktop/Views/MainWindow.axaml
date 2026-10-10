@@ -1,0 +1,287 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+        xmlns:v="using:GmailWatcher.Desktop.Views"
+        xmlns:c="using:GmailWatcher.Desktop.Controls"
+        x:Class="GmailWatcher.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Gmail Watcher"
+        Width="880" Height="660" MinWidth="560" MinHeight="420"
+        WindowStartupLocation="CenterScreen"
+        WindowDecorations="None"
+        CanResize="True"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent">
+
+  <Window.Styles>
+    <!-- Maximized: no transparent margin and square corners, so the window fills the screen cleanly. -->
+    <Style Selector="Window.maximized Panel#Frame">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="Window.maximized Border.round">
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="Window.maximized Panel#ResizeFrame">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+  </Window.Styles>
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="F5" Command="{Binding SyncAllCommand}" />
+    <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding OpenSettingsCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding CloseDetailsCommand}" />
+  </Window.KeyBindings>
+
+  <!--
+    Layers: the surface (gradient + stars), then the framed content, then the HUD corner marks. The transparent margin
+    around the surface holds the resize handles; every pixel inside the surface takes the pointer normally.
+  -->
+  <Panel>
+    <Panel Name="Frame" Margin="6">
+      <Border Classes="round" CornerRadius="{StaticResource RadiusLarge}" Background="{DynamicResource SpaceSurfaceBrush}" />
+      <Border Classes="round" CornerRadius="{StaticResource RadiusLarge}" ClipToBounds="True">
+        <c:StarField />
+      </Border>
+      <Border Classes="round" CornerRadius="{StaticResource RadiusLarge}" BorderBrush="{DynamicResource HudFrameBrush}" BorderThickness="1"
+              BoxShadow="{DynamicResource HudGlowShadow}">
+        <DockPanel>
+          <!-- Header: drag to move, double-click to maximize -->
+          <Border DockPanel.Dock="Top" Padding="14,8,6,4" Background="Transparent"
+                  PointerPressed="OnHeaderPointerPressed" DoubleTapped="OnHeaderDoubleTapped">
+            <Grid ColumnDefinitions="*,Auto">
+              <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="10" VerticalAlignment="Center">
+                <TextBlock Classes="brand" Text="◆ GMAIL WATCHER" VerticalAlignment="Center" />
+                <Border Grid.Column="1" CornerRadius="10" Padding="8,2" BorderThickness="1" BorderBrush="{DynamicResource HudFrameBrush}"
+                        Background="{DynamicResource PanelBrush}" VerticalAlignment="Center" ToolTip.Tip="Overall state of your accounts">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <c:StatusDot Tone="{Binding StatusTone}" Width="7" Height="7" VerticalAlignment="Center" />
+                    <TextBlock Classes="hud" Text="{Binding StatusText}" FontSize="10" LetterSpacing="1.5" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Classes="tag accent" IsVisible="{Binding IsDemo}" ToolTip.Tip="Made-up mail in its own folder. No Google account is involved.">
+                  <TextBlock Text="DEMO" />
+                </Border>
+              </Grid>
+              <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <!-- A newer release exists: a small accent pill opens the update window. -->
+                <Button Classes="update" Command="{Binding OpenUpdateCommand}" IsVisible="{Binding UpdateAvailable}"
+                        ToolTip.Tip="{Binding UpdateTooltip}" AutomationProperties.Name="Update available">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <PathIcon Data="{StaticResource IconUpdate}" Width="11" Height="11" />
+                    <TextBlock Text="UPDATE" FontSize="10" FontWeight="SemiBold" LetterSpacing="1.2" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+                <Button Classes="icon" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="Settings (Ctrl+,)" AutomationProperties.Name="Settings">
+                  <PathIcon Data="{StaticResource IconSettings}" />
+                </Button>
+                <Button Classes="icon" Click="OnMinimizeClick" ToolTip.Tip="Minimize" AutomationProperties.Name="Minimize">
+                  <PathIcon Data="{StaticResource IconMinimize}" />
+                </Button>
+                <Button Classes="icon" Click="OnMaximizeClick" ToolTip.Tip="Maximize or restore" AutomationProperties.Name="Maximize or restore">
+                  <PathIcon Data="{StaticResource IconMaximize}" />
+                </Button>
+                <Button Classes="icon danger" Click="OnCloseClick" ToolTip.Tip="Close" AutomationProperties.Name="Close">
+                  <PathIcon Data="{StaticResource IconClose}" />
+                </Button>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- A scan line sweeps under the header only while something is working. -->
+          <Panel DockPanel.Dock="Top" Height="2" Margin="14,0,14,4">
+            <Border Height="1" Background="{DynamicResource HudFrameBrush}" Opacity="0.5" VerticalAlignment="Center" />
+            <ProgressBar Classes="scan" IsVisible="{Binding AnyBusy}" />
+          </Panel>
+
+          <!-- Demo banner -->
+          <Border DockPanel.Dock="Top" IsVisible="{Binding IsDemo}" Background="{DynamicResource DemoBannerBrush}" Padding="12,4,6,4"
+                  Margin="14,0,14,6" CornerRadius="8">
+            <TextBlock Text="Demo: made-up mail in its own folder. Press Sync on an account to watch a download; nothing here involves Google or your real mail."
+                       TextWrapping="Wrap" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource DemoBannerForegroundBrush}" />
+          </Border>
+
+          <!-- Notice (what just happened) -->
+          <Border DockPanel.Dock="Top" IsVisible="{Binding HasNotice}" Classes="card" Margin="14,0,14,8" Padding="12,6">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="icon" Command="{Binding DismissNoticeCommand}" ToolTip.Tip="Dismiss" AutomationProperties.Name="Dismiss">
+                <PathIcon Data="{StaticResource IconClose}" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <!-- Google isn't set up: accounts can be browsed and verified, but not added or reconnected -->
+          <Border DockPanel.Dock="Top" IsVisible="{Binding ShowGoogleBanner}" Classes="card attention" Margin="14,0,14,8" Padding="12,8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
+                         Text="Google sign-in isn't set up yet. Until it is, you can browse and verify what's archived, but you can't add or reconnect Gmail accounts." />
+              <Button Grid.Column="1" Content="Set up Google…" Command="{Binding SetUpGoogleCommand}" Classes="accent" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+
+          <!-- Footer: archive location and resize grip -->
+          <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" Margin="14,2,4,4" MinHeight="18">
+            <TextBlock Classes="secondary" Text="{Binding FooterText}" VerticalAlignment="Center" ToolTip.Tip="The archive folder and what is in it" />
+            <Border Grid.Column="1" Width="18" Height="18" Background="Transparent" Cursor="BottomRightCorner" Tag="SouthEast"
+                    PointerPressed="OnResizePointerPressed" ToolTip.Tip="Drag to resize">
+              <Path Data="M15,6 L6,15 M15,11 L11,15" Stroke="{DynamicResource HudFrameBrush}" StrokeThickness="1.5" />
+            </Border>
+          </Grid>
+
+          <!-- Body -->
+          <Panel Name="Body">
+            <!-- Welcome: where should the archive live? -->
+            <ScrollViewer IsVisible="{Binding ShowWelcome}">
+              <StackPanel Margin="28,24" MaxWidth="600" Spacing="12" HorizontalAlignment="Center">
+                <TextBlock Text="Welcome" FontSize="22" FontWeight="SemiBold" />
+                <TextBlock TextWrapping="Wrap"
+                           Text="Gmail Watcher downloads your Gmail into a folder on this PC: every message exactly as Gmail has it, every attachment, and a searchable index. Then it checks that nothing is missing, so you can safely empty your Gmail." />
+                <TextBlock TextWrapping="Wrap" Classes="secondary" TextTrimming="None"
+                           Text="It can only read your mail. It asks Google for read-only access, so it can never delete or change anything in Gmail." />
+                <TextBlock Classes="heading" Text="Where should the archive live?" />
+                <TextBlock TextWrapping="Wrap" Classes="secondary" TextTrimming="None"
+                           Text="Mailboxes are big (often 10 to 100 GB or more). Pick a folder on a drive with plenty of free space. This folder is the only copy once you empty Gmail, so back it up as you would any important files. Avoid folders that sync to the cloud." />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox Text="{Binding FolderText}" AutomationProperties.Name="Archive folder" />
+                  <Button Grid.Column="1" Content="Browse…" Command="{Binding BrowseFolderCommand}" />
+                </Grid>
+                <TextBlock Text="{Binding FolderProblem}" IsVisible="{Binding HasFolderProblem}" Classes="bad" TextWrapping="Wrap" />
+                <WrapPanel ItemSpacing="8" LineSpacing="8">
+                  <Button Content="Use this folder" Command="{Binding UseFolderCommand}" Classes="accent" />
+                  <Button Content="Explore with demo data" Command="{Binding LaunchDemoCommand}"
+                          ToolTip.Tip="Opens a second window with made-up mail in its own folder, so you can see how everything works first." />
+                </WrapPanel>
+              </StackPanel>
+            </ScrollViewer>
+
+            <!-- The configured archive can't be opened -->
+            <StackPanel IsVisible="{Binding ShowArchiveProblem}" Margin="28" Spacing="10" VerticalAlignment="Center" MaxWidth="600">
+              <TextBlock Text="The archive can't be opened" FontSize="18" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding ArchiveProblemText}" TextWrapping="Wrap" />
+              <TextBlock Classes="secondary" TextTrimming="None" TextWrapping="Wrap" Text="Nothing was changed. If the drive is disconnected, connect it and restart Gmail Watcher." />
+              <WrapPanel ItemSpacing="8" LineSpacing="8">
+                <Button Content="Choose another folder…" Command="{Binding ChooseOtherFolderCommand}" />
+                <Button Content="Open settings" Command="{Binding OpenSettingsCommand}" />
+              </WrapPanel>
+            </StackPanel>
+
+            <!-- Nothing connected yet -->
+            <StackPanel IsVisible="{Binding ShowNoAccounts}" Margin="28" Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560">
+              <PathIcon Data="{StaticResource IconMail}" Width="40" Height="40" Foreground="{DynamicResource HudAccentBrush}" HorizontalAlignment="Left" />
+              <TextBlock Text="Add your first Gmail account" FontSize="20" FontWeight="SemiBold" />
+              <TextBlock TextWrapping="Wrap"
+                         Text="You'll sign in with Google in your browser and allow read-only access. Then press Sync to download the mailbox. You can stop and continue any time." />
+              <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
+                         Text="A big mailbox can take hours to download: Google limits how fast mail can be fetched. Later syncs only fetch what's new." />
+              <WrapPanel ItemSpacing="8" LineSpacing="8">
+                <Button Content="Add Gmail account" Command="{Binding AddAccountCommand}" Classes="accent" />
+                <Button Content="Open archive folder" Command="{Binding OpenArchiveFolderCommand}" />
+              </WrapPanel>
+            </StackPanel>
+
+            <!-- The accounts -->
+            <DockPanel IsVisible="{Binding ShowList}">
+              <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="18,2,18,8">
+                <TextBlock Classes="hud" Text="ACCOUNTS" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                  <Button Command="{Binding AddAccountCommand}" ToolTip.Tip="Connect another Gmail account">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <PathIcon Data="{StaticResource IconAdd}" Width="12" Height="12" />
+                      <TextBlock Text="Add account" />
+                    </StackPanel>
+                  </Button>
+                  <Button Command="{Binding SyncAllCommand}" Classes="accent" ToolTip.Tip="Check every connected account for new mail (F5)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <PathIcon Data="{StaticResource IconSync}" Width="12" Height="12" />
+                      <TextBlock Text="Sync all" />
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </Grid>
+              <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Accounts}" Margin="18,0,18,10">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AccountRowViewModel">
+                      <Border Classes="card" Margin="0,0,0,10" Classes.attention="{Binding Display.NeedsReconnect}">
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="3">
+                          <!-- Who, and what to do -->
+                          <StackPanel Orientation="Horizontal" Spacing="10">
+                            <c:StatusDot Tone="{Binding Display.Tone}" Width="9" Height="9" VerticalAlignment="Center" />
+                            <TextBlock Classes="title" Text="{Binding Title}" FontSize="15" VerticalAlignment="Center" />
+                            <Border Classes="tag warn" IsVisible="{Binding HasConnectionTag}">
+                              <TextBlock Text="{Binding Display.ConnectionTag}" />
+                            </Border>
+                          </StackPanel>
+                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <Button Content="Reconnect" Command="{Binding ReconnectCommand}" IsVisible="{Binding Display.NeedsReconnect}" Classes="accent" />
+                            <Button Command="{Binding SyncCommand}" IsVisible="{Binding Display.CanSync}" ToolTip.Tip="Download new mail from Gmail">
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconSync}" Width="12" Height="12" />
+                                <TextBlock Text="Sync" />
+                              </StackPanel>
+                            </Button>
+                            <Button Command="{Binding StopCommand}" IsVisible="{Binding Display.CanStop}" ToolTip.Tip="Stop. What was downloaded is kept; the next sync continues from there.">
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconStop}" Width="12" Height="12" />
+                                <TextBlock Text="Stop" />
+                              </StackPanel>
+                            </Button>
+                            <Button Command="{Binding VerifyCommand}" IsVisible="{Binding Display.CanVerify}"
+                                    ToolTip.Tip="Check that everything in Gmail is archived and every file is intact">
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconShieldCheck}" Width="12" Height="12" />
+                                <TextBlock Text="Verify" />
+                              </StackPanel>
+                            </Button>
+                            <Button Content="Details" Command="{Binding ShowDetailsCommand}" ToolTip.Tip="Statistics, analytics, search and more" />
+                          </StackPanel>
+
+                          <!-- What is archived -->
+                          <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="secondary" Text="{Binding Display.Summary}" IsVisible="{Binding Display.HasSummary}" Margin="19,0,0,0" TextTrimming="None" TextWrapping="Wrap" />
+
+                          <!-- Sync state -->
+                          <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding Display.SyncLine}" Margin="19,2,0,0" TextWrapping="Wrap"
+                                     FontSize="12" Classes.warn="{Binding Display.SyncLineIsProblem}" />
+
+                          <!-- Verification state -->
+                          <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Margin="19,2,0,0" IsVisible="{Binding ShowVerifyLine}">
+                            <PathIcon Data="{StaticResource IconShieldCheck}" Width="12" Height="12" VerticalAlignment="Top" Margin="0,2,0,0"
+                                      Classes.good="{Binding VerifyIsGood}" Classes.warn="{Binding VerifyIsWarning}" Classes.bad="{Binding VerifyIsBad}" />
+                            <TextBlock Text="{Binding Display.VerifyLine}" FontSize="12" TextWrapping="Wrap"
+                                       Classes.good="{Binding VerifyIsGood}" Classes.warn="{Binding VerifyIsWarning}" Classes.bad="{Binding VerifyIsBad}" />
+                          </StackPanel>
+
+                          <!-- Progress -->
+                          <ProgressBar Grid.Row="4" Grid.ColumnSpan="2" Classes="sync" Margin="19,8,0,0" IsVisible="{Binding Display.ShowProgress}"
+                                       IsIndeterminate="{Binding Display.ProgressIsIndeterminate}" Minimum="0" Maximum="100" Value="{Binding Display.ProgressPercent}" />
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </DockPanel>
+
+            <!-- One account in detail -->
+            <Panel IsVisible="{Binding ShowDetails}">
+              <v:AccountDetailsView DataContext="{Binding Details}" />
+            </Panel>
+          </Panel>
+        </DockPanel>
+      </Border>
+      <c:HudCorners Stroke="{DynamicResource HudAccentBrush}" Length="16" Opacity="0.9" />
+    </Panel>
+
+    <!-- Resize from every edge and corner: thin strips in the transparent margin around the surface. -->
+    <Panel Name="ResizeFrame">
+      <Border Classes="resize" PointerPressed="OnResizePointerPressed" Tag="North" Cursor="TopSide" Height="7" VerticalAlignment="Top" Margin="14,0" />
+      <Border Classes="resize" PointerPressed="OnResizePointerPressed" Tag="South" Cursor="BottomSide" Height="7" VerticalAlignment="Bottom" Margin="14,0" />
+      <Border Classes="resize" PointerPressed="OnResizePointerPressed" Tag="West" Cursor="LeftSide" Width="7" HorizontalAlignment="Left" Margin="0,14" />
+      <Border Classes="resize" PointerPressed="OnResizePointerPressed" Tag="East" Cursor="RightSide" Width="7" HorizontalAlignment="Right" Margin="0,14" />
+      <Border Classes="resize" PointerPressed="OnResizePointerPressed" Tag="NorthWest" Cursor="TopLeftCorner" Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Top" />
+      <Border Classes="resize" PointerPressed="OnResizePointerPressed" Tag="NorthEast" Cursor="TopRightCorner" Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Top" />
+      <Border Classes="resize" PointerPressed="OnResizePointerPressed" Tag="SouthWest" Cursor="BottomLeftCorner" Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Bottom" />
+      <Border Classes="resize" PointerPressed="OnResizePointerPressed" Tag="SouthEast" Cursor="BottomRightCorner" Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+    </Panel>
+  </Panel>
+</Window>

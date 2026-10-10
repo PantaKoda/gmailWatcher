@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:GmailWatcher.Desktop.ViewModels"
+             xmlns:v="using:GmailWatcher.Desktop.Views"
+             xmlns:c="using:GmailWatcher.Desktop.Controls"
+             x:Class="GmailWatcher.Desktop.Views.AccountDetailsView"
+             x:DataType="vm:AccountDetailsViewModel">
+  <DockPanel Classes="details">
+    <DockPanel.RenderTransform>
+      <TranslateTransform />
+    </DockPanel.RenderTransform>
+
+    <!-- Back, who -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="14,0,14,4">
+      <Button Classes="icon" Command="{Binding CloseCommand}" ToolTip.Tip="Back to accounts (Esc)" AutomationProperties.Name="Back to accounts">
+        <PathIcon Data="{StaticResource IconBack}" />
+      </Button>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="6,0">
+        <c:StatusDot Tone="{Binding Row.Display.Tone}" Width="9" Height="9" VerticalAlignment="Center" />
+        <TextBlock Classes="title" Text="{Binding Row.Title}" FontSize="16" VerticalAlignment="Center" />
+        <Border Classes="tag warn" IsVisible="{Binding Row.HasConnectionTag}">
+          <TextBlock Text="{Binding Row.Display.ConnectionTag}" />
+        </Border>
+      </StackPanel>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+        <Button Content="Reconnect" Command="{Binding ReconnectCommand}" IsVisible="{Binding Row.Display.NeedsReconnect}" Classes="accent" />
+        <Button Command="{Binding SyncCommand}" IsVisible="{Binding Row.Display.CanSync}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource IconSync}" Width="12" Height="12" />
+            <TextBlock Text="Sync" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding Row.StopCommand}" IsVisible="{Binding Row.Display.CanStop}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource IconStop}" Width="12" Height="12" />
+            <TextBlock Text="Stop" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </Grid>
+
+    <!-- Live progress of whatever is running -->
+    <StackPanel DockPanel.Dock="Top" Margin="20,0,20,6" Spacing="3" IsVisible="{Binding Row.Display.ShowProgress}">
+      <TextBlock Text="{Binding Row.Display.ProgressText}" FontSize="12" TextWrapping="Wrap" />
+      <ProgressBar Classes="sync" IsIndeterminate="{Binding Row.Display.ProgressIsIndeterminate}" Minimum="0" Maximum="100" Value="{Binding Row.Display.ProgressPercent}" />
+    </StackPanel>
+
+    <TabControl SelectedIndex="{Binding SelectedTab}" Padding="0" Margin="10,0,10,0">
+      <TabItem Header="Overview" FontSize="13">
+        <v:OverviewView Margin="0,4,0,0" />
+      </TabItem>
+      <TabItem Header="Insights" FontSize="13">
+        <v:InsightsView DataContext="{Binding Insights}" Margin="0,4,0,0" />
+      </TabItem>
+      <TabItem Header="Browse" FontSize="13">
+        <v:BrowseView DataContext="{Binding Browse}" Margin="0,4,0,0" />
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</UserControl>
