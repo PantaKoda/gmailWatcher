@@ -23,6 +23,11 @@ public enum VerificationIssueKind
     AttachmentMissing,
     AttachmentCorrupt,
     DatabaseDamaged,
+    /// <summary>
+    /// Windows or an antivirus refused to let the app read an extracted attachment copy. Only a note while the saved message
+    /// file (which contains the attachment) is intact.
+    /// </summary>
+    AttachmentBlocked,
 }
 
 public sealed record VerificationIssue(VerificationIssueKind Kind, string? MessageId, string Detail);
@@ -59,9 +64,22 @@ public sealed record VerificationReport(
     IReadOnlyList<VerificationIssue> Issues,
     int IssuesNotListed,
     /// <summary>Why Gmail could not be asked (offline, signed out...); null when it was, or was not meant to be.</summary>
-    string? GmailCheckError = null)
+    string? GmailCheckError = null,
+    /// <summary>
+    /// Findings that do not make the archive incomplete: an extracted attachment copy that is missing, changed or blocked while
+    /// the saved message file, which contains the attachment byte for byte, is intact. Null in reports saved by earlier versions.
+    /// </summary>
+    IReadOnlyList<VerificationIssue>? Notices = null,
+    int NoticesNotListed = 0)
 {
     public const int MaxListedIssues = 200;
 
     public bool IsClean => Verdict == VerificationVerdict.Verified;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<VerificationIssue> NoticeList => Notices ?? [];
+
+    /// <summary>How many notes there are in all, listed or not.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int NoticeCount => NoticeList.Count + NoticesNotListed;
 }

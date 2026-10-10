@@ -139,7 +139,7 @@ public static class AccountPresenter
         var ago = at is { } when ? Formatting.Ago(when, now) : "";
         return state switch
         {
-            VerifyState.Verified => $"Verified {ago}: everything Gmail listed is archived, and every file is intact.",
+            VerifyState.Verified => $"Verified {ago}: everything Gmail listed is archived, and every saved message is intact.",
             VerifyState.Stale => $"Verified {ago}, but you have synced since. Verify again before you delete anything in Gmail.",
             VerifyState.Problems => $"Verification found problems {ago}. Open the details to see them.",
             VerifyState.FilesOnly => $"The files are intact ({ago}), but Gmail couldn't be checked, so completeness isn't confirmed.",

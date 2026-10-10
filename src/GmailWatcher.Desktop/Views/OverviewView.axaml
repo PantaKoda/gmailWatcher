@@ -39,6 +39,23 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
           <TextBlock IsVisible="{Binding HasMoreIssues}" Classes="secondary" Text="{Binding IssuesNotListed, StringFormat='…and {0} more.'}" />
+
+          <!-- Notes: only an extra attachment file is affected; the saved message still holds the attachment. -->
+          <StackPanel Spacing="4" Margin="0,6,0,0" IsVisible="{Binding HasNotices}">
+            <TextBlock Classes="hud" Text="NOTES · NOTHING IS LOST" />
+            <TextBlock Text="{Binding NoticeIntro}" TextWrapping="Wrap" TextTrimming="None" FontSize="12" />
+            <ItemsControl ItemsSource="{Binding Notices}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:IssueItem">
+                  <StackPanel Margin="0,4,0,0">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" />
+                    <TextBlock Text="{Binding Detail}" Classes="secondary" TextWrapping="Wrap" TextTrimming="None" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock IsVisible="{Binding HasMoreNotices}" Classes="secondary" Text="{Binding NoticesNotListed, StringFormat='…and {0} more.'}" />
+          </StackPanel>
         </StackPanel>
       </Border>
 

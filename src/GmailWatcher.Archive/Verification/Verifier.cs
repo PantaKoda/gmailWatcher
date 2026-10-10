@@ -16,10 +16,39 @@ namespace GmailWatcher.Archive.Verification;
 /// </list>
 /// Only both together give <see cref="VerificationVerdict.Verified"/>. The result describes that moment: mail that arrives
 /// afterwards is not covered. Read-only: nothing in the archive or in Gmail is changed (the report is saved).
+/// <para>
+/// A message's .eml file is the backup: it is byte-identical to what Gmail returned and contains every attachment. The
+/// attachments are also saved as separate files for convenience. When such a copy is missing, changed or blocked (an
+/// antivirus can refuse to let anyone read a file it flags) but the .eml is intact, nothing is lost: that is reported as a
+/// note (<see cref="VerificationReport.Notices"/>) and does not stop the archive from being verified. If the .eml is damaged
+/// too, the copy may be all that is left, and everything is a problem.
+/// </para>
 /// </summary>
 public sealed class Verifier(AccountStore accounts, MessageStore messages, ArchiveLayout layout, TimeProvider time, ILogger<Verifier> logger)
 {
     private const int Parallelism = 4;
+
+    // Win32 ERROR_VIRUS_INFECTED / ERROR_VIRUS_DELETED, as the low 16 bits of the HRESULT .NET puts on the IOException.
+    private const int ErrorVirusInfected = 225;
+    private const int ErrorVirusDeleted = 226;
+
+    /// <summary>What was wrong with one file.</summary>
+    internal enum FileState
+    {
+        Missing,
+        /// <summary>Its size or checksum differs from what was saved.</summary>
+        Changed,
+        /// <summary>Windows reported the file as containing a virus or unwanted software, and would not let it be read.</summary>
+        Blocked,
+        /// <summary>Some other reason it could not be read (in use, no permission, a disk error).</summary>
+        Unreadable,
+    }
+
+    internal readonly record struct FileProblem(FileState State, string Detail);
+
+    /// <summary>True when Windows (Defender or another antivirus) refused to open the file because it flagged it.</summary>
+    internal static bool IsBlockedByAntivirus(Exception exception) =>
+        exception is IOException && (exception.HResult & 0xFFFF) is ErrorVirusInfected or ErrorVirusDeleted;
 
     /// <param name="mailbox">The account's Gmail mailbox, or null to check the files only (offline, or a disconnected account).</param>
     public async Task<VerificationReport> VerifyAsync(AccountRecord account, IMailbox? mailbox, IProgress<VerificationProgress>? progress = null, CancellationToken cancellationToken = default)
@@ -27,7 +56,11 @@ public sealed class Verifier(AccountStore accounts, MessageStore messages, Archi
         ArgumentNullException.ThrowIfNull(account);
         var started = time.GetUtcNow();
         var issues = new ConcurrentQueue<VerificationIssue>();
+        var notices = new ConcurrentQueue<VerificationIssue>();
+        // Messages whose own .eml is not intact: for those, a bad attachment copy may be the only copy left.
+        var damagedMessages = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
         long issueCount = 0;
+        long noticeCount = 0;
         long missingFromArchive = 0;
         long filesChecked = 0;
         long filesMissing = 0;
@@ -43,6 +76,14 @@ public sealed class Verifier(AccountStore accounts, MessageStore messages, Archi
             if (Interlocked.Increment(ref issueCount) <= VerificationReport.MaxListedIssues)
             {
                 issues.Enqueue(issue);
+            }
+        }
+
+        void AddNotice(VerificationIssue notice)
+        {
+            if (Interlocked.Increment(ref noticeCount) <= VerificationReport.MaxListedIssues)
+            {
+                notices.Enqueue(notice);
             }
         }
 
@@ -88,6 +129,7 @@ public sealed class Verifier(AccountStore accounts, MessageStore messages, Archi
             foreach (var page in messages.EnumerateFiles(account.Id))
             {
                 var attachments = messages.GetAttachmentFiles(page);
+                // The message files first: whether an attachment copy matters depends on whether its message file is intact.
                 await Parallel.ForEachAsync(page, new ParallelOptions { MaxDegreeOfParallelism = Parallelism, CancellationToken = cancellationToken }, (file, token) =>
                 {
                     CheckFile(file, token);
@@ -121,59 +163,100 @@ public sealed class Verifier(AccountStore accounts, MessageStore messages, Archi
             : gmailChecked ? VerificationVerdict.Verified : VerificationVerdict.FilesIntactGmailNotChecked;
         var report = Build(verdict);
         accounts.SaveVerification(account.Id, report);
-        logger.LogInformation("Verified {Account}: {Verdict}; {Files} files, {NotDownloaded} not yet downloaded, {Missing} missing, {Damaged} damaged",
-            account.Email, verdict, filesChecked, missingFromArchive, filesMissing, filesCorrupt);
+        logger.LogInformation("Verified {Account}: {Verdict}; {Files} files, {NotDownloaded} not yet downloaded, {Missing} missing, {Damaged} damaged, {Notes} attachment copies noted",
+            account.Email, verdict, filesChecked, missingFromArchive, filesMissing, filesCorrupt, noticeCount);
         return report;
 
         VerificationReport Build(VerificationVerdict result) => new(
             started, time.GetUtcNow(), result, gmailChecked, gmailMessages, messages.Count(account.Id), missingFromArchive,
             filesChecked, filesMissing, filesCorrupt, bytesChecked, databaseIntact, [.. issues],
-            (int)Math.Max(0, issueCount - VerificationReport.MaxListedIssues), gmailError);
+            (int)Math.Max(0, issueCount - VerificationReport.MaxListedIssues), gmailError,
+            [.. notices], (int)Math.Max(0, noticeCount - VerificationReport.MaxListedIssues));
 
         void CheckFile(StoredMessageFile file, CancellationToken token)
         {
-            var path = layout.Resolve(account.Folder, file.EmlPath);
             Interlocked.Increment(ref filesChecked);
-            Examine(path, file.SizeBytes, file.Sha256, token, VerificationIssueKind.FileMissing, VerificationIssueKind.FileCorrupt, file.GmailId, "message file");
+            if (Examine(layout.Resolve(account.Folder, file.EmlPath), file.SizeBytes, file.Sha256, token, "message file") is not { } problem)
+            {
+                return;
+            }
+
+            damagedMessages.TryAdd(file.GmailId, 0);
+            if (problem.State == FileState.Missing)
+            {
+                Interlocked.Increment(ref filesMissing);
+                Add(new VerificationIssue(VerificationIssueKind.FileMissing, file.GmailId, problem.Detail));
+            }
+            else
+            {
+                Interlocked.Increment(ref filesCorrupt);
+                var detail = problem.State == FileState.Blocked
+                    ? problem.Detail + " Open Windows Security, then Virus & threat protection, then Protection history: if you trust it, restore or allow it there, and verify again."
+                    : problem.Detail;
+                Add(new VerificationIssue(VerificationIssueKind.FileCorrupt, file.GmailId, detail));
+            }
         }
 
         void CheckAttachment(StoredAttachmentFile file, CancellationToken token)
         {
-            var path = layout.Resolve(account.Folder, file.Path);
             Interlocked.Increment(ref filesChecked);
-            Examine(path, file.SizeBytes, file.Sha256, token, VerificationIssueKind.AttachmentMissing, VerificationIssueKind.AttachmentCorrupt, file.GmailId, $"attachment {file.FileName}");
+            if (Examine(layout.Resolve(account.Folder, file.Path), file.SizeBytes, file.Sha256, token, $"attachment {file.FileName}") is not { } problem)
+            {
+                return;
+            }
+
+            if (damagedMessages.ContainsKey(file.GmailId))
+            {
+                // The message file is damaged too, so this copy may be all that is left of the attachment.
+                if (problem.State == FileState.Missing)
+                {
+                    Interlocked.Increment(ref filesMissing);
+                    Add(new VerificationIssue(VerificationIssueKind.AttachmentMissing, file.GmailId, problem.Detail));
+                }
+                else
+                {
+                    Interlocked.Increment(ref filesCorrupt);
+                    Add(new VerificationIssue(VerificationIssueKind.AttachmentCorrupt, file.GmailId, problem.Detail));
+                }
+
+                return;
+            }
+
+            var kind = problem.State switch
+            {
+                FileState.Missing => VerificationIssueKind.AttachmentMissing,
+                FileState.Blocked => VerificationIssueKind.AttachmentBlocked,
+                _ => VerificationIssueKind.AttachmentCorrupt,
+            };
+            AddNotice(new VerificationIssue(kind, file.GmailId, problem.Detail));
         }
 
-        void Examine(string path, long expectedSize, string expectedHash, CancellationToken token, VerificationIssueKind missing, VerificationIssueKind corrupt, string messageId, string what)
+        FileProblem? Examine(string path, long expectedSize, string expectedHash, CancellationToken token, string what)
         {
             try
             {
                 var info = new FileInfo(path);
                 if (!info.Exists)
                 {
-                    Interlocked.Increment(ref filesMissing);
-                    Add(new VerificationIssue(missing, messageId, $"The {what} is missing from the archive folder."));
-                    return;
+                    return new FileProblem(FileState.Missing, $"The {what} is missing from the archive folder (an antivirus or a cleanup tool may have removed it).");
                 }
 
                 Interlocked.Add(ref bytesChecked, info.Length);
                 if (info.Length != expectedSize)
                 {
-                    Interlocked.Increment(ref filesCorrupt);
-                    Add(new VerificationIssue(corrupt, messageId, $"The {what} has a different size ({info.Length:N0} bytes) than when it was downloaded ({expectedSize:N0})."));
-                    return;
+                    return new FileProblem(FileState.Changed, $"The {what} has a different size ({info.Length:N0} bytes) than when it was downloaded ({expectedSize:N0}).");
                 }
 
-                if (!string.Equals(FileStore.Sha256Hex(path, token), expectedHash, StringComparison.Ordinal))
-                {
-                    Interlocked.Increment(ref filesCorrupt);
-                    Add(new VerificationIssue(corrupt, messageId, $"The {what} no longer matches the checksum saved when it was downloaded."));
-                }
+                return string.Equals(FileStore.Sha256Hex(path, token), expectedHash, StringComparison.Ordinal)
+                    ? null
+                    : new FileProblem(FileState.Changed, $"The {what} no longer matches the checksum saved when it was downloaded.");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                Interlocked.Increment(ref filesCorrupt);
-                Add(new VerificationIssue(corrupt, messageId, $"The {what} could not be read: {ex.Message}"));
+                // Windows' own wording ("contains a virus or potentially unwanted software") is the clearest thing to show, without the path.
+                return IsBlockedByAntivirus(ex)
+                    ? new FileProblem(FileState.Blocked, $"Windows or your antivirus blocked access to the {what}: it reports that the file contains a virus or potentially unwanted software.")
+                    : new FileProblem(FileState.Unreadable, $"The {what} could not be read: {ex.Message}");
             }
         }
     }

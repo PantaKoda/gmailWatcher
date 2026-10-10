@@ -91,6 +91,22 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
     [ObservableProperty]
     public partial string FolderText { get; private set; } = "";
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNotices))]
+    public partial IReadOnlyList<IssueItem> Notices { get; private set; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMoreNotices))]
+    public partial int NoticesNotListed { get; private set; }
+
+    /// <summary>Why the notes are not a problem, in words that fit what they contain.</summary>
+    [ObservableProperty]
+    public partial string NoticeIntro { get; private set; } = "";
+
+    public bool HasNotices => Notices.Count > 0;
+
+    public bool HasMoreNotices => NoticesNotListed > 0;
+
     public bool HasIssues => Issues.Count > 0;
 
     public bool HasMoreIssues => IssuesNotListed > 0;
@@ -194,6 +210,9 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
                 : "Sync this account first. Then Verify tells you whether the archive can replace the Gmail mailbox.";
             Issues = [];
             IssuesNotListed = 0;
+            Notices = [];
+            NoticesNotListed = 0;
+            NoticeIntro = "";
             CanRepair = false;
             return;
         }
@@ -203,7 +222,10 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
         {
             VerifyState.Verified => ($"Verified {ago}",
                 $"Gmail listed {Formatting.Plural(report.GmailMessages, "message")} and every one is archived. " +
-                $"All {Formatting.Plural(report.FilesChecked, "file")} ({Formatting.Bytes(report.BytesChecked)}) match the checksums saved when they were downloaded. " +
+                (report.NoticeCount == 0
+                    ? $"All {Formatting.Plural(report.FilesChecked, "file")} ({Formatting.Bytes(report.BytesChecked)}) match the checksums saved when they were downloaded. "
+                    : $"{Formatting.Plural(report.FilesChecked - report.NoticeCount, "file")} match the checksums saved when they were downloaded, including every saved message. " +
+                      $"{Formatting.Plural(report.NoticeCount, "extracted attachment copy", "extracted attachment copies")} could not be read (see the notes below), but each attachment is still inside its saved message, so nothing is lost. ") +
                 "Mail that arrives after this check is not covered: sync and verify again right before you delete."),
             VerifyState.Stale => ($"Verified {ago}, but you've synced since",
                 "More mail was downloaded after that check. Verify again so the result covers everything."),
@@ -215,6 +237,9 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
 
         Issues = [.. report.Issues.Take(50).Select(Describe)];
         IssuesNotListed = report.IssuesNotListed + Math.Max(0, report.Issues.Count - 50);
+        Notices = [.. report.NoticeList.Take(50).Select(DescribeNotice)];
+        NoticesNotListed = report.NoticesNotListed + Math.Max(0, report.NoticeList.Count - 50);
+        NoticeIntro = NoticeIntroOf(report);
         CanRepair = report.Issues.Any(i => i.Kind is VerificationIssueKind.FileMissing or VerificationIssueKind.FileCorrupt
             or VerificationIssueKind.AttachmentMissing or VerificationIssueKind.AttachmentCorrupt);
     }
@@ -252,8 +277,36 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
         VerificationIssueKind.FileCorrupt => "Message file damaged",
         VerificationIssueKind.AttachmentMissing => "Attachment missing",
         VerificationIssueKind.AttachmentCorrupt => "Attachment damaged",
+        VerificationIssueKind.AttachmentBlocked => "Attachment blocked",
         _ => "Database problem",
     }, issue.Detail);
+
+    /// <summary>A note: only the extra attachment file is affected, the saved message still holds the attachment.</summary>
+    private static IssueItem DescribeNotice(VerificationIssue issue) => issue.Kind switch
+    {
+        VerificationIssueKind.AttachmentMissing => new IssueItem("Attachment copy missing", issue.Detail),
+        VerificationIssueKind.AttachmentCorrupt => new IssueItem("Attachment copy changed or unreadable", issue.Detail),
+        VerificationIssueKind.AttachmentBlocked => new IssueItem("Attachment copy blocked by Windows or your antivirus", issue.Detail),
+        _ => Describe(issue),
+    };
+
+    private static string NoticeIntroOf(VerificationReport report)
+    {
+        if (report.NoticeCount == 0)
+        {
+            return "";
+        }
+
+        var text = "The saved message is the backup: it holds every attachment byte for byte, and it checked out. " +
+                   "These separate attachment files are only an extra convenience copy, so losing one is not a loss of mail and does not stop this archive from counting as verified.";
+        if (report.NoticeList.Any(n => n.Kind == VerificationIssueKind.AttachmentBlocked))
+        {
+            text += " Windows or your antivirus blocked at least one of them as a virus or unwanted software. " +
+                    "If you don't recognise the file, leave it blocked. To see what it found: Windows Security, then Virus & threat protection, then Protection history.";
+        }
+
+        return text;
+    }
 
     private static IEnumerable<string> StatsOf(GmailWatcher.Core.Accounts.AccountStats stats)
     {

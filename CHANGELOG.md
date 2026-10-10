@@ -4,6 +4,11 @@ What changed in each Gmail Watcher release. The section for a version becomes it
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-10
+
+### Fixed
+- **Verify no longer fails because of one blocked or missing attachment copy.** Gmail Watcher saves every message as a complete `.eml` file (which contains the attachments) and also extracts the attachments into separate files. If Windows or your antivirus blocks, removes or damages one of those extra copies ("the file contains a virus or potentially unwanted software"), Verify used to report "Problems found" with nothing you could do. Now, as long as the saved message itself checked out, it is shown as a note ("Notes · nothing is lost") and the account still counts as Verified. A damaged message file is still a problem, and so is a damaged attachment copy of a message whose file is damaged too.
+
 ## [0.1.2] - 2026-10-10
 
 ### Fixed

@@ -17,7 +17,7 @@ user can verify the backup and then empty their Gmail. Looks and updates like th
 - **Archive is append-only.** A message Gmail no longer has is only marked `remote_deleted_at`. Emptying Gmail must never empty the archive (tested).
 - **SQLite authoritative, DuckDB derived**: DuckDB is rebuilt from SQLite if missing/damaged; it is opened only while working so external tools can open the file.
 - **Raw .eml is the backup** (byte-identical to Gmail's raw, SHA-256 recorded); attachments are also extracted (marked "from the internet" via Zone.Identifier).
-- **Verification** = (every ID Gmail lists is archived) AND (every file still matches its recorded size + SHA-256) AND (SQLite quick_check). Only then "Verified".
+- **Verification** = (every ID Gmail lists is archived) AND (every message file still matches its recorded size + SHA-256) AND (SQLite quick_check). Only then "Verified". The extracted attachment files are convenience copies of what the .eml already holds: if one is missing, changed or blocked by an antivirus while its .eml is intact, that is a *note* (`VerificationReport.Notices`), not a failure; if the .eml is damaged too, it is a problem.
 - Hand-rolled Google OAuth (loopback + PKCE) and Gmail REST client; no Google SDK.
 - The only destructive path in the app is "Delete from this PC" (typed `DELETE`); it never touches Gmail.
 
@@ -44,7 +44,7 @@ tests/*                    xunit.v3 on Microsoft.Testing.Platform:  dotnet test 
 | 7. Docs (README, google-cloud-setup, architecture, updates), CHANGELOG | done |
 | 8. End-to-end check with `--demo`, screenshots, publish script run | done (see below) |
 
-Tests: **686**, all passing (Core 72, Google 292, Archive 118, Desktop 204). The full suite was run repeatedly back to back to
+Tests: **699**, all passing (Core 72, Google 292, Archive 128, Desktop 207). The full suite was run repeatedly back to back to
 shake out flaky tests; the ones found were test-harness races (see Gotchas), not product bugs, and are fixed.
 
 ## Verified vs not verified

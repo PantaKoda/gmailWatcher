@@ -148,18 +148,115 @@ public sealed class VerifierTests : IDisposable
         Assert.Contains("checksum", Assert.Single(report.Issues).Detail);
     }
 
+    private string AttachmentCopyOf(string messageId)
+    {
+        var files = _fixture.Messages.EnumerateFiles(Account.Id).SelectMany(p => p).ToList();
+        return _fixture.Layout.Resolve(Account.Folder, _fixture.Messages.GetAttachmentFiles(files).Single(a => a.GmailId == messageId).Path);
+    }
+
     [Fact]
-    public async Task A_damaged_attachment_file_is_detected()
+    public async Task A_changed_attachment_copy_is_only_a_note_while_the_message_file_holding_it_is_intact()
     {
         var id = Deliver(new SyntheticAttachment("contract.pdf", "application/pdf", [10, 20, 30, 40, 50]));
         await SyncAsync(_mailbox);
-        var attachment = _fixture.Messages.GetAttachmentFiles(_fixture.Messages.EnumerateFiles(Account.Id).SelectMany(p => p).ToList()).Single();
-        File.WriteAllBytes(_fixture.Layout.Resolve(Account.Folder, attachment.Path), [10, 20, 30, 40, 51]);
+        File.WriteAllBytes(AttachmentCopyOf(id), [10, 20, 30, 40, 51]);
 
         var report = await VerifyAsync(_mailbox);
 
-        Assert.Equal(VerificationIssueKind.AttachmentCorrupt, Assert.Single(report.Issues).Kind);
-        Assert.Equal(id, report.Issues[0].MessageId);
+        Assert.Equal(VerificationVerdict.Verified, report.Verdict);
+        Assert.Empty(report.Issues);
+        Assert.Equal(0, report.FilesCorrupt);
+        var note = Assert.Single(report.NoticeList);
+        Assert.Equal(VerificationIssueKind.AttachmentCorrupt, note.Kind);
+        Assert.Equal(id, note.MessageId);
+        Assert.Contains("contract.pdf", note.Detail, StringComparison.Ordinal);
+        Assert.Equal(1, report.NoticeCount);
+    }
+
+    [Fact]
+    public async Task A_missing_attachment_copy_is_only_a_note_too()
+    {
+        var id = Deliver(new SyntheticAttachment("photo.jpg", "image/jpeg", [1, 2, 3]));
+        await SyncAsync(_mailbox);
+        File.Delete(AttachmentCopyOf(id));
+
+        var report = await VerifyAsync(_mailbox);
+
+        Assert.Equal(VerificationVerdict.Verified, report.Verdict);
+        Assert.Equal(0, report.FilesMissing);
+        Assert.Equal(VerificationIssueKind.AttachmentMissing, Assert.Single(report.NoticeList).Kind);
+    }
+
+    [Fact]
+    public async Task An_attachment_copy_that_cannot_be_read_is_a_note_not_a_failure()
+    {
+        var id = Deliver(new SyntheticAttachment("locked.bin", "application/octet-stream", [5, 6, 7]));
+        await SyncAsync(_mailbox);
+        using var hold = new FileStream(AttachmentCopyOf(id), FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var report = await VerifyAsync(_mailbox);
+
+        Assert.Equal(VerificationVerdict.Verified, report.Verdict);
+        var note = Assert.Single(report.NoticeList);
+        Assert.Equal(VerificationIssueKind.AttachmentCorrupt, note.Kind);
+        Assert.Contains("could not be read", note.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task When_the_message_file_is_damaged_too_its_attachment_copy_is_a_real_problem()
+    {
+        var id = Deliver(new SyntheticAttachment("contract.pdf", "application/pdf", [10, 20, 30]));
+        await SyncAsync(_mailbox);
+        File.WriteAllBytes(EmlOf(id), [0]);
+        File.Delete(AttachmentCopyOf(id));
+
+        var report = await VerifyAsync(_mailbox);
+
+        Assert.Equal(VerificationVerdict.Problems, report.Verdict);
+        Assert.Empty(report.NoticeList);
+        Assert.Equal([VerificationIssueKind.FileCorrupt, VerificationIssueKind.AttachmentMissing], report.Issues.Select(i => i.Kind).Order());
+    }
+
+    [Fact]
+    public async Task A_damaged_message_file_is_still_a_problem_even_when_its_attachment_copy_is_fine()
+    {
+        var id = Deliver(new SyntheticAttachment("contract.pdf", "application/pdf", [10, 20, 30]));
+        await SyncAsync(_mailbox);
+        File.WriteAllBytes(EmlOf(id), [0]);
+
+        var report = await VerifyAsync(_mailbox);
+
+        Assert.Equal(VerificationVerdict.Problems, report.Verdict);
+        Assert.Equal(VerificationIssueKind.FileCorrupt, Assert.Single(report.Issues).Kind);
+        Assert.Empty(report.NoticeList);
+    }
+
+    [Theory]
+    [InlineData(unchecked((int)0x800700E1), true)]  // ERROR_VIRUS_INFECTED: "the file contains a virus or potentially unwanted software"
+    [InlineData(unchecked((int)0x800700E2), true)]  // ERROR_VIRUS_DELETED
+    [InlineData(unchecked((int)0x80070020), false)] // sharing violation
+    [InlineData(unchecked((int)0x80070005), false)] // access denied
+    [InlineData(unchecked((int)0x80131620), false)] // plain IOException
+    public void Only_windows_virus_errors_count_as_blocked_by_an_antivirus(int hresult, bool blocked)
+    {
+        Assert.Equal(blocked, Verifier.IsBlockedByAntivirus(new IOException("x", hresult)));
+        Assert.False(Verifier.IsBlockedByAntivirus(new UnauthorizedAccessException("x")));
+    }
+
+    [Fact]
+    public async Task Notes_survive_being_saved_and_an_older_report_without_notes_still_loads()
+    {
+        var id = Deliver(new SyntheticAttachment("a.txt", "text/plain", [1]));
+        await SyncAsync(_mailbox);
+        File.Delete(AttachmentCopyOf(id));
+        await VerifyAsync(_mailbox);
+
+        var loaded = _fixture.Accounts.LoadVerification(Account.Id)!;
+        Assert.Equal(VerificationIssueKind.AttachmentMissing, Assert.Single(loaded.NoticeList).Kind);
+
+        var older = loaded with { Notices = null, NoticesNotListed = 0 };
+        _fixture.Accounts.SaveVerification(Account.Id, older);
+        Assert.Empty(_fixture.Accounts.LoadVerification(Account.Id)!.NoticeList);
     }
 
     [Fact]

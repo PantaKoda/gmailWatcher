@@ -208,6 +208,55 @@ public sealed class DetailsViewModelTests
     }
 
     [Fact]
+    public async Task A_missing_attachment_copy_is_a_note_and_the_archive_still_counts_as_verified()
+    {
+        var (kit, main, row) = await SyncedAsync(80);
+        using var _ = kit;
+        var runtime = kit.Archive.Runtime;
+        var account = kit.Accounts.List()[0];
+        var files = runtime.Messages.EnumerateFiles(account.Id).SelectMany(p => p).ToList();
+        File.Delete(runtime.Layout.Resolve(account.Folder, runtime.Messages.GetAttachmentFiles(files).First().Path));
+        main.Accounts[0].ShowDetailsCommand.Execute(null);
+        var details = main.Details!;
+
+        await VerifyAsync(kit, main, row);
+
+        Assert.Equal(VerifyState.Verified, row.Display.Verify);
+        Assert.StartsWith("Verified", details.VerifyHeadline, StringComparison.Ordinal);
+        Assert.Contains("still inside its saved message", details.VerifyDetail, StringComparison.Ordinal);
+        Assert.Empty(details.Issues);
+        Assert.False(details.CanRepair);
+        Assert.True(details.HasNotices);
+        Assert.Equal("Attachment copy missing", Assert.Single(details.Notices).Title);
+        Assert.Contains("does not stop this archive from counting as verified", details.NoticeIntro, StringComparison.Ordinal);
+        Assert.DoesNotContain("antivirus blocked", details.NoticeIntro, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_note_about_a_blocked_attachment_explains_the_antivirus_and_where_to_look()
+    {
+        var (kit, main, row) = await SyncedAsync(40);
+        using var _ = kit;
+        main.Accounts[0].ShowDetailsCommand.Execute(null);
+        await VerifyAsync(kit, main, row);
+        var accounts = kit.Archive.Runtime.Accounts;
+        var report = accounts.LoadVerification(row.Id)!;
+        accounts.SaveVerification(row.Id, report with
+        {
+            Notices = [new VerificationIssue(VerificationIssueKind.AttachmentBlocked, "m1", "Windows or your antivirus blocked access to the attachment antivirus-test-file.txt: it reports that the file contains a virus or potentially unwanted software.")],
+        });
+        main.Details!.Refresh();
+
+        var details = main.Details;
+
+        Assert.Equal("Attachment copy blocked by Windows or your antivirus", Assert.Single(details.Notices).Title);
+        Assert.Contains("If you don't recognise the file, leave it blocked", details.NoticeIntro, StringComparison.Ordinal);
+        Assert.Contains("Protection history", details.NoticeIntro, StringComparison.Ordinal);
+        Assert.Contains("everything Gmail listed", row.Display.VerifyLine, StringComparison.Ordinal);
+        Assert.Contains("every saved message is intact", row.Display.VerifyLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_search_that_lost_the_race_cannot_leave_the_spinner_on()
     {
         var (kit, main, row) = await SyncedAsync(60);

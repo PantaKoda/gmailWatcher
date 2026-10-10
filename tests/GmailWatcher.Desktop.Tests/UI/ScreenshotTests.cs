@@ -131,6 +131,33 @@ public sealed class ScreenshotTests
     }
 
     [AvaloniaFact]
+    public async Task Overview_with_a_note_about_an_attachment_the_antivirus_blocked()
+    {
+        using var kit = new TestKit(accounts: 1, messages: 120);
+        var viewModel = kit.CreateMain(dispatcher: new AvaloniaUiDispatcher());
+        var window = Open(viewModel, ThemeVariant.Dark, height: 760);
+        var account = kit.Accounts.List()[0];
+        kit.Sync.StartSync(account);
+        await SettleAsync(kit, account.Id);
+        kit.Sync.StartVerify(kit.Accounts.Get(account.Id)!);
+        await SettleAsync(kit, account.Id);
+        var store = kit.Archive.Runtime.Accounts;
+        var report = store.LoadVerification(account.Id)!;
+        store.SaveVerification(account.Id, report with
+        {
+            Notices = [new Core.Verification.VerificationIssue(Core.Verification.VerificationIssueKind.AttachmentBlocked, "18c0000000000f1",
+                "Windows or your antivirus blocked access to the attachment antivirus-test-file.txt: it reports that the file contains a virus or potentially unwanted software.")],
+        });
+
+        ((IAccountCommands)viewModel).ShowDetails(viewModel.Accounts[0]);
+        viewModel.Details!.Refresh();
+        Capture(window, "06b-details-overview-note");
+
+        Assert.True(viewModel.Details.HasNotices);
+        window.Close();
+    }
+
+    [AvaloniaFact]
     public async Task Details_overview_insights_and_browse()
     {
         using var kit = new TestKit(accounts: 1, messages: 500);

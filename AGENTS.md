@@ -20,7 +20,7 @@ Tests use xunit v3 on Microsoft.Testing.Platform: no `-nologo`, and the analyzer
 - **Read-only toward Gmail.** Only the `gmail.readonly` scope is requested. Nothing may modify or delete mail in Gmail.
 - **The archive is append-only.** A message Gmail no longer has is *marked* (`remote_deleted_at`), never removed. Only `ArchiveMaintenance.DeleteAccountData` (typed confirmation) and `Repair` (messages Gmail still has) remove archived data.
 - **Files before rows.** Write to a temp name, flush to disk, rename; commit the database row only afterwards.
-- **Never claim more than was checked.** `Verified` requires Gmail to have been listed *and* all files re-hashed. UI wording lives in `AccountPresenter` and is tested.
+- **Never claim more than was checked.** `Verified` requires Gmail to have been listed *and* every message file (.eml) re-hashed. An unreadable extracted attachment copy (missing, changed, or blocked by an antivirus: Windows error 225/226) is a *note* only while its .eml is intact, because the .eml holds the attachment; if the .eml is damaged too it is a problem. UI wording lives in `AccountPresenter` and `AccountDetailsViewModel` and is tested.
 - Tokens only in `ICredentialStore`; never in SQLite, settings, logs, URLs or the clipboard. Never log message content, subjects, addresses or tokens.
 - Mail content is untrusted: attachment names go through `ArchiveLayout.SafeFileName`; HTML is converted to text, never rendered; risky attachment types are revealed, not opened.
 - SQLite is authoritative; DuckDB is derived and must be rebuildable from it.
