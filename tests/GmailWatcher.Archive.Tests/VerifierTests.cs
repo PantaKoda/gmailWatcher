@@ -260,6 +260,88 @@ public sealed class VerifierTests : IDisposable
     }
 
     [Fact]
+    public async Task A_message_gmails_list_names_but_gmail_says_does_not_exist_is_a_note_not_a_gap()
+    {
+        Deliver();
+        Deliver();
+        await SyncAsync(_mailbox);
+        _mailbox.AddGhost("18c0000000000a9");
+
+        var report = await VerifyAsync(_mailbox);
+
+        Assert.Equal(VerificationVerdict.Verified, report.Verdict);
+        Assert.Empty(report.Issues);
+        Assert.Equal(0, report.MissingFromArchive);
+        var note = Assert.Single(report.NoticeList);
+        Assert.Equal(VerificationIssueKind.ListedButGone, note.Kind);
+        Assert.Equal("18c0000000000a9", note.MessageId);
+        Assert.Contains("no such message", note.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_listed_message_that_really_exists_is_still_a_gap_next_to_one_that_does_not()
+    {
+        Deliver();
+        await SyncAsync(_mailbox);
+        _mailbox.AddGhost("ghost-1");
+        var real = Deliver(); // arrived after the sync
+
+        var report = await VerifyAsync(_mailbox);
+
+        Assert.Equal(VerificationVerdict.Problems, report.Verdict);
+        var issue = Assert.Single(report.Issues);
+        Assert.Equal(VerificationIssueKind.MissingFromArchive, issue.Kind);
+        Assert.Equal(real, issue.MessageId);
+        Assert.Equal(1, report.MissingFromArchive);
+        Assert.Equal("ghost-1", Assert.Single(report.NoticeList).MessageId);
+    }
+
+    [Fact]
+    public async Task When_gmail_cannot_be_asked_about_a_listed_message_it_counts_as_not_downloaded()
+    {
+        Deliver();
+        await SyncAsync(_mailbox);
+        _mailbox.AddGhost("ghost-1");
+        _mailbox.FailGet = _ => new MailboxUnavailableException("offline");
+
+        var report = await VerifyAsync(_mailbox);
+
+        Assert.Equal(VerificationVerdict.Problems, report.Verdict);
+        Assert.Equal(VerificationIssueKind.MissingFromArchive, Assert.Single(report.Issues).Kind);
+        Assert.Empty(report.NoticeList);
+    }
+
+    [Fact]
+    public async Task Only_a_limited_number_of_listed_messages_are_asked_about_the_rest_need_a_sync()
+    {
+        Deliver();
+        await SyncAsync(_mailbox);
+        for (var i = 0; i < 45; i++)
+        {
+            _mailbox.AddGhost($"ghost-{i}");
+        }
+
+        var report = await VerifyAsync(_mailbox);
+
+        Assert.Equal(VerificationVerdict.Problems, report.Verdict);
+        Assert.Equal(40, report.NoticeList.Count(n => n.Kind == VerificationIssueKind.ListedButGone));
+        Assert.Equal(5, report.MissingFromArchive);
+    }
+
+    [Fact]
+    public async Task A_sync_treats_the_same_listed_but_gone_message_as_vanished_and_completes()
+    {
+        Deliver();
+        _mailbox.AddGhost("ghost-1");
+
+        var result = await _fixture.SyncAsync(Email, _mailbox, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncOutcome.Completed, result.Outcome);
+        Assert.Equal(1, result.MessagesAdded);
+        Assert.Equal(1, result.VanishedBeforeDownload);
+    }
+
+    [Fact]
     public async Task Without_gmail_only_the_files_are_checked_and_the_verdict_says_so()
     {
         Deliver();

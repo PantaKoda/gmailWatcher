@@ -28,6 +28,11 @@ public enum VerificationIssueKind
     /// file (which contains the attachment) is intact.
     /// </summary>
     AttachmentBlocked,
+    /// <summary>
+    /// Gmail's message list still names this ID, but asking Gmail for the message answers "no such message" (the list can lag behind
+    /// after a large deletion). There is nothing to download, so it is only a note.
+    /// </summary>
+    ListedButGone,
 }
 
 public sealed record VerificationIssue(VerificationIssueKind Kind, string? MessageId, string Detail);

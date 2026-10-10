@@ -4,6 +4,11 @@ What changed in each Gmail Watcher release. The section for a version becomes it
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-11
+
+### Fixed
+- **Verify no longer gets stuck on a message Gmail's list names but Gmail says does not exist.** After you delete a lot of mail in Gmail, its message list can keep naming messages for a while that are already gone. Verify counted such a message as "not downloaded yet", and no sync could ever fix that. Verify now asks Gmail about each listed message that isn't archived: if Gmail says there is no such message, it is shown as a note ("Gmail lists a message that no longer exists") and the account still counts as Verified. A message that really exists and isn't downloaded is still a problem.
+
 ## [0.1.3] - 2026-10-10
 
 ### Fixed

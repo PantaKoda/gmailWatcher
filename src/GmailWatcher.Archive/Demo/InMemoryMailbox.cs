@@ -71,6 +71,8 @@ public sealed class InMemoryMailbox : IMailbox
     /// <summary>Raised for each message download; return an exception to make that download fail.</summary>
     public Func<string, Exception?>? FailGet { get; set; }
 
+    private readonly List<string> _ghosts = [];
+
     public Exception? FailProfile { get; set; }
 
     public Exception? FailList { get; set; }
@@ -158,6 +160,18 @@ public sealed class InMemoryMailbox : IMailbox
         }
     }
 
+    /// <summary>
+    /// Makes the message list name an ID that no longer exists: Gmail's list can lag behind after a large deletion, while asking for the
+    /// message itself answers "no such message".
+    /// </summary>
+    public void AddGhost(string id)
+    {
+        lock (_gate)
+        {
+            _ghosts.Add(id);
+        }
+    }
+
     /// <summary>Permanently deletes a message (what emptying Trash or "delete forever" does).</summary>
     public void Delete(string id)
     {
@@ -236,6 +250,10 @@ public sealed class InMemoryMailbox : IMailbox
         lock (_gate)
         {
             ids = _messages.Where(m => labelId is null || m.Labels.Contains(labelId)).Reverse().Select(m => m.Id).ToList(); // newest first
+            if (labelId is null)
+            {
+                ids.InsertRange(0, _ghosts);
+            }
         }
 
         foreach (var id in ids)

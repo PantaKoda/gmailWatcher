@@ -220,13 +220,7 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
         var ago = Formatting.Ago(report.CompletedAt, _time.GetUtcNow());
         (VerifyHeadline, VerifyDetail) = display.Verify switch
         {
-            VerifyState.Verified => ($"Verified {ago}",
-                $"Gmail listed {Formatting.Plural(report.GmailMessages, "message")} and every one is archived. " +
-                (report.NoticeCount == 0
-                    ? $"All {Formatting.Plural(report.FilesChecked, "file")} ({Formatting.Bytes(report.BytesChecked)}) match the checksums saved when they were downloaded. "
-                    : $"{Formatting.Plural(report.FilesChecked - report.NoticeCount, "file")} match the checksums saved when they were downloaded, including every saved message. " +
-                      $"{Formatting.Plural(report.NoticeCount, "extracted attachment copy", "extracted attachment copies")} could not be read (see the notes below), but each attachment is still inside its saved message, so nothing is lost. ") +
-                "Mail that arrives after this check is not covered: sync and verify again right before you delete."),
+            VerifyState.Verified => ($"Verified {ago}", VerifiedDetail(report)),
             VerifyState.Stale => ($"Verified {ago}, but you've synced since",
                 "More mail was downloaded after that check. Verify again so the result covers everything."),
             VerifyState.FilesOnly => ($"Files intact {ago}; Gmail wasn't checked",
@@ -281,9 +275,24 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
         _ => "Database problem",
     }, issue.Detail);
 
-    /// <summary>A note: only the extra attachment file is affected, the saved message still holds the attachment.</summary>
+    private static string VerifiedDetail(VerificationReport report)
+    {
+        var gone = report.NoticeList.Count(n => n.Kind == VerificationIssueKind.ListedButGone);
+        var copies = report.NoticeCount - gone;
+        var text = gone == 0
+            ? $"Gmail listed {Formatting.Plural(report.GmailMessages, "message")} and every one is archived. "
+            : $"Gmail's list named {Formatting.Plural(report.GmailMessages, "message")}. Every one that exists is archived; for {Formatting.Count(gone)} of them Gmail says there is no such message (see the notes below). ";
+        text += copies == 0
+            ? $"All {Formatting.Plural(report.FilesChecked, "file")} ({Formatting.Bytes(report.BytesChecked)}) match the checksums saved when they were downloaded. "
+            : $"{Formatting.Plural(report.FilesChecked - copies, "file")} match the checksums saved when they were downloaded, including every saved message. " +
+              $"{Formatting.Plural(copies, "extracted attachment copy", "extracted attachment copies")} could not be read (see the notes below), but each attachment is still inside its saved message, so nothing is lost. ";
+        return text + "Mail that arrives after this check is not covered: sync and verify again right before you delete.";
+    }
+
+    /// <summary>A note: nothing is lost, so it does not stop the archive from counting as verified.</summary>
     private static IssueItem DescribeNotice(VerificationIssue issue) => issue.Kind switch
     {
+        VerificationIssueKind.ListedButGone => new IssueItem("Gmail lists a message that no longer exists", issue.Detail),
         VerificationIssueKind.AttachmentMissing => new IssueItem("Attachment copy missing", issue.Detail),
         VerificationIssueKind.AttachmentCorrupt => new IssueItem("Attachment copy changed or unreadable", issue.Detail),
         VerificationIssueKind.AttachmentBlocked => new IssueItem("Attachment copy blocked by Windows or your antivirus", issue.Detail),
@@ -297,15 +306,27 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
             return "";
         }
 
-        var text = "The saved message is the backup: it holds every attachment byte for byte, and it checked out. " +
-                   "These separate attachment files are only an extra convenience copy, so losing one is not a loss of mail and does not stop this archive from counting as verified.";
-        if (report.NoticeList.Any(n => n.Kind == VerificationIssueKind.AttachmentBlocked))
+        var parts = new List<string>();
+        if (report.NoticeList.Any(n => n.Kind != VerificationIssueKind.ListedButGone))
         {
-            text += " Windows or your antivirus blocked at least one of them as a virus or unwanted software. " +
-                    "If you don't recognise the file, leave it blocked. To see what it found: Windows Security, then Virus & threat protection, then Protection history.";
+            var text = "The saved message is the backup: it holds every attachment byte for byte, and it checked out. " +
+                       "The separate attachment files are only an extra convenience copy, so losing one is not a loss of mail and does not stop this archive from counting as verified.";
+            if (report.NoticeList.Any(n => n.Kind == VerificationIssueKind.AttachmentBlocked))
+            {
+                text += " Windows or your antivirus blocked at least one of them as a virus or unwanted software. " +
+                        "If you don't recognise the file, leave it blocked. To see what it found: Windows Security, then Virus & threat protection, then Protection history.";
+            }
+
+            parts.Add(text);
         }
 
-        return text;
+        if (report.NoticeList.Any(n => n.Kind == VerificationIssueKind.ListedButGone))
+        {
+            parts.Add("Gmail's list still names messages that Gmail itself says no longer exist (it can take a while to catch up after you delete a lot, for example after emptying the Trash). " +
+                      "There is nothing to download or lose, so this does not stop this archive from counting as verified.");
+        }
+
+        return string.Join(" ", parts);
     }
 
     private static IEnumerable<string> StatsOf(GmailWatcher.Core.Accounts.AccountStats stats)

@@ -20,13 +20,20 @@ namespace GmailWatcher.Archive.Verification;
 /// A message's .eml file is the backup: it is byte-identical to what Gmail returned and contains every attachment. The
 /// attachments are also saved as separate files for convenience. When such a copy is missing, changed or blocked (an
 /// antivirus can refuse to let anyone read a file it flags) but the .eml is intact, nothing is lost: that is reported as a
-/// note (<see cref="VerificationReport.Notices"/>) and does not stop the archive from being verified. If the .eml is damaged
+/// note (<see cref="VerificationReport.Notices"/>) and does not stop the archive from being verified, and so is a message that
+/// Gmail's list names but Gmail itself says does not exist. If the .eml is damaged
 /// too, the copy may be all that is left, and everything is a problem.
 /// </para>
 /// </summary>
 public sealed class Verifier(AccountStore accounts, MessageStore messages, ArchiveLayout layout, TimeProvider time, ILogger<Verifier> logger)
 {
     private const int Parallelism = 4;
+
+    /// <summary>
+    /// How many listed-but-not-archived messages Verify asks Gmail about (each is a full download request). More than this means the
+    /// archive is simply behind: sync, then verify again.
+    /// </summary>
+    private const int MaxProbes = 40;
 
     // Win32 ERROR_VIRUS_INFECTED / ERROR_VIRUS_DELETED, as the low 16 bits of the HRESULT .NET puts on the IOException.
     private const int ErrorVirusInfected = 225;
@@ -98,13 +105,13 @@ public sealed class Verifier(AccountStore accounts, MessageStore messages, Archi
                     progress?.Report(new VerificationProgress(VerificationPhase.ListingGmail, 0, 0));
                     var archived = messages.GetIds(account.Id);
                     var listed = 0L;
+                    var notArchived = new List<string>();
                     await foreach (var id in mailbox.ListMessageIdsAsync(null, cancellationToken).ConfigureAwait(false))
                     {
                         listed++;
                         if (!archived.Contains(id))
                         {
-                            missingFromArchive++;
-                            Add(new VerificationIssue(VerificationIssueKind.MissingFromArchive, id, "Gmail has this message but it is not downloaded yet."));
+                            notArchived.Add(id);
                         }
 
                         if (listed % 1000 == 0)
@@ -115,6 +122,34 @@ public sealed class Verifier(AccountStore accounts, MessageStore messages, Archi
 
                     gmailMessages = listed;
                     gmailChecked = true;
+
+                    // The list can name messages that no longer exist (it lags behind after a big deletion). Ask Gmail about each one
+                    // that is not archived: "no such message" is a note, a message that is really there is a real gap.
+                    var probing = true;
+                    for (var i = 0; i < notArchived.Count; i++)
+                    {
+                        var id = notArchived[i];
+                        if (probing && i < MaxProbes)
+                        {
+                            try
+                            {
+                                if (await mailbox.GetMessageAsync(id, cancellationToken).ConfigureAwait(false) is null)
+                                {
+                                    AddNotice(new VerificationIssue(VerificationIssueKind.ListedButGone, id,
+                                        "Gmail's list still names this message, but Gmail says there is no such message (the list can lag behind after you delete a lot). There is nothing to download."));
+                                    continue;
+                                }
+                            }
+                            catch (Exception ex) when (ex is ReconnectRequiredException or MailboxUnavailableException or QuotaExhaustedException)
+                            {
+                                probing = false; // cannot ask any more: the rest count as not downloaded, which is the safe reading
+                                logger.LogInformation("Verification of {Account}: could not ask Gmail about a listed message ({Reason})", account.Email, ex.Message);
+                            }
+                        }
+
+                        missingFromArchive++;
+                        Add(new VerificationIssue(VerificationIssueKind.MissingFromArchive, id, "Gmail has this message but it is not downloaded yet."));
+                    }
                 }
                 catch (Exception ex) when (ex is ReconnectRequiredException or MailboxUnavailableException or QuotaExhaustedException)
                 {

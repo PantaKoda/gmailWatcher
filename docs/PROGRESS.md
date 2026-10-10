@@ -44,7 +44,7 @@ tests/*                    xunit.v3 on Microsoft.Testing.Platform:  dotnet test 
 | 7. Docs (README, google-cloud-setup, architecture, updates), CHANGELOG | done |
 | 8. End-to-end check with `--demo`, screenshots, publish script run | done (see below) |
 
-Tests: **699**, all passing (Core 72, Google 292, Archive 128, Desktop 207). The full suite was run repeatedly back to back to
+Tests: **705**, all passing (Core 72, Google 292, Archive 133, Desktop 208). The full suite was run repeatedly back to back to
 shake out flaky tests; the ones found were test-harness races (see Gotchas), not product bugs, and are fixed.
 
 ## Verified vs not verified
@@ -96,3 +96,6 @@ The Google client is tested against scripted HTTP fixtures built from Google's d
 - CI runners have slow disks and the app flushes every file (by design), so syncs in tests can take 10-20x longer there than on a dev PC, especially while the other test
   assemblies run in parallel. Test waits are generous on purpose (`TestKit.UntilAsync` 120 s, `WaitIdleAsync` 240 s): they only matter when something really hangs. The release
   workflow reruns the tests, so a flaky test blocks a release: if CI fails, read the log before re-running, and fix the cause.
+- Gmail's `messages.list` can keep naming messages for a while after a bulk deletion (the profile's `messagesTotal` was 389 while the list still had 1,826 ids). Asking for such a
+  message answers 404 (`GetMessageAsync` returns null). Sync counts it as vanished; Verify probes up to 40 listed-but-not-archived ids and records the ones Gmail says do not
+  exist as notes (`ListedButGone`), not as gaps. More than 40 unarchived ids means the archive is simply behind: sync, then verify again.

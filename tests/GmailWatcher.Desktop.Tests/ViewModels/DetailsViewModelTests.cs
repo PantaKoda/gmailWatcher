@@ -233,6 +233,30 @@ public sealed class DetailsViewModelTests
     }
 
     [Fact]
+    public async Task A_message_gmail_still_lists_but_says_does_not_exist_is_a_note_and_the_archive_is_verified()
+    {
+        var (kit, main, row) = await SyncedAsync(40);
+        using var _ = kit;
+        var mailbox = (GmailWatcher.Archive.Demo.InMemoryMailbox)await kit.Mailboxes.OpenAsync(kit.Accounts.List()[0].Email, TestContext.Current.CancellationToken);
+        mailbox.AddGhost("18c0000000000a9");
+        main.Accounts[0].ShowDetailsCommand.Execute(null);
+        var details = main.Details!;
+
+        // A sync cannot download it (Gmail says there is no such message), and neither can anything else: it must not trap the user.
+        row.SyncCommand.Execute(null);
+        await kit.WaitIdleAsync(row.Id);
+        await VerifyAsync(kit, main, row);
+
+        Assert.Equal(VerifyState.Verified, row.Display.Verify);
+        Assert.StartsWith("Verified", details.VerifyHeadline, StringComparison.Ordinal);
+        Assert.Contains("Gmail says there is no such message", details.VerifyDetail, StringComparison.Ordinal);
+        Assert.Empty(details.Issues);
+        Assert.Equal("Gmail lists a message that no longer exists", Assert.Single(details.Notices).Title);
+        Assert.Contains("emptying the Trash", details.NoticeIntro, StringComparison.Ordinal);
+        Assert.DoesNotContain("attachment", details.NoticeIntro, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task A_note_about_a_blocked_attachment_explains_the_antivirus_and_where_to_look()
     {
         var (kit, main, row) = await SyncedAsync(40);
