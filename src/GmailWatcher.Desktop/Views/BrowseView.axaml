@@ -61,10 +61,10 @@
               <DataTemplate x:DataType="vm:MessagePreviewViewModel">
                 <DockPanel>
             <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,8">
-              <TextBlock Text="{Binding Subject}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding From, StringFormat='From: {0}'}" TextWrapping="Wrap" FontSize="12" />
-              <TextBlock Text="{Binding To, StringFormat='To: {0}'}" TextWrapping="Wrap" FontSize="12" />
-              <TextBlock Text="{Binding Cc, StringFormat='Cc: {0}'}" TextWrapping="Wrap" FontSize="12" IsVisible="{Binding HasCc}" />
+              <SelectableTextBlock Text="{Binding Subject}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <SelectableTextBlock Text="{Binding From, StringFormat='From: {0}'}" TextWrapping="Wrap" FontSize="12" />
+              <SelectableTextBlock Text="{Binding To, StringFormat='To: {0}'}" TextWrapping="Wrap" FontSize="12" />
+              <SelectableTextBlock Text="{Binding Cc, StringFormat='Cc: {0}'}" TextWrapping="Wrap" FontSize="12" IsVisible="{Binding HasCc}" />
               <TextBlock Text="{Binding Date}" Classes="secondary" />
               <TextBlock Text="{Binding LabelsText}" Classes="secondary" />
               <Border Classes="tag warn" IsVisible="{Binding GoneFromGmail}" HorizontalAlignment="Left" ToolTip.Tip="Gmail no longer has this message. This archive holds the only copy.">
@@ -72,8 +72,12 @@
               </Border>
               <TextBlock Text="{Binding Problem}" IsVisible="{Binding HasProblem}" Classes="bad" TextWrapping="Wrap" />
               <WrapPanel ItemSpacing="8" LineSpacing="6" Margin="0,4,0,0">
+                <Button Content="Copy text" Command="{Binding CopyBodyCommand}" ToolTip.Tip="Copy the message text to the clipboard" />
+                <Button Content="Copy all" Command="{Binding CopyAllCommand}" ToolTip.Tip="Copy the subject, sender, recipients, date and text to the clipboard" />
                 <Button Content="Show .eml file" Command="{Binding ShowFileCommand}" ToolTip.Tip="The complete message exactly as Gmail has it" />
                 <Button Content="Open in mail app" Command="{Binding OpenInMailAppCommand}" />
+                <TextBlock Text="{Binding CopyStatus}" Classes="secondary" VerticalAlignment="Center"
+                           IsVisible="{Binding CopyStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               </WrapPanel>
             </StackPanel>
             <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Attachments}" IsVisible="{Binding HasAttachments}" Margin="0,8,0,0">
@@ -92,7 +96,16 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
             <ScrollViewer>
-              <SelectableTextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+              <SelectableTextBlock Text="{Binding Body}" TextWrapping="Wrap">
+                <SelectableTextBlock.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="Copy" InputGesture="Ctrl+C" Click="OnCopySelection" />
+                    <MenuItem Header="Select all" InputGesture="Ctrl+A" Click="OnSelectAll" />
+                    <Separator />
+                    <MenuItem Header="Copy whole message" Command="{Binding CopyAllCommand}" />
+                  </ContextMenu>
+                </SelectableTextBlock.ContextMenu>
+              </SelectableTextBlock>
             </ScrollViewer>
                 </DockPanel>
               </DataTemplate>

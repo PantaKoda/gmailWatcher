@@ -14,6 +14,8 @@ public enum SyncPhase
     /// <summary>Updating the analytics database.</summary>
     Analytics,
     Finishing,
+    /// <summary>Re-reading saved mail so its subjects and search index use the current, better decoding (once, after an update).</summary>
+    Indexing,
 }
 
 /// <summary>

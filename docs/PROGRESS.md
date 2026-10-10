@@ -44,7 +44,7 @@ tests/*                    xunit.v3 on Microsoft.Testing.Platform:  dotnet test 
 | 7. Docs (README, google-cloud-setup, architecture, updates), CHANGELOG | done |
 | 8. End-to-end check with `--demo`, screenshots, publish script run | done (see below) |
 
-Tests: **675**, all passing (Core 72, Google 292, Archive 110, Desktop 201). The full suite was run repeatedly back to back to
+Tests: **686**, all passing (Core 72, Google 292, Archive 118, Desktop 204). The full suite was run repeatedly back to back to
 shake out flaky tests; the ones found were test-harness races (see Gotchas), not product bugs, and are fixed.
 
 ## Verified vs not verified
@@ -86,5 +86,10 @@ The Google client is tested against scripted HTTP fixtures built from Google's d
   (test: `A_search_that_lost_the_race_cannot_leave_the_spinner_on`). This was found by the first release build, not locally.
 - Avalonia compiled bindings: a nested `x:DataType` makes same-element `DataContext`/`IsVisible` bindings resolve against the child context; wrap in a Panel/ContentControl.
 - Style the destructive button as `Button.accent.danger`; a bare `Button.danger` also catches icon buttons (the window Close button turned red once).
+- .NET only knows UTF-8/16/32, ASCII and Latin-1. Mail in iso-8859-7, windows-1253, windows-1251, shift_jis... needs `CodePagesEncodingProvider` registered, or it decodes to Latin
+  letters ("Êáëçìýñá"). `EncodingSupport` (module initializer in the Archive assembly) does it. The first release lacked it (found when the user saw gibberish Greek mail);
+  `TextRefresher` re-reads the saved .eml files once per account (`meta` key `text_version:<account>`, `TextRefresher.CurrentVersion`) at the start of the next sync. Bump
+  `CurrentVersion` whenever decoding improves again. Archive-only (disconnected) accounts are not refreshed, because the refresh runs inside a sync.
+- Avalonia 12: `ContextMenu.PlacementTarget` is null; find the owner with `FindLogicalAncestorOfType<SelectableTextBlock>()` from the menu item. `SelectableTextBlock` has no built-in menu.
 - Python is not installed; use sed/PowerShell/Edit for scripted edits. Escaped backslashes through sed are unreliable: use the editor.
 - Bash heredocs containing apostrophes break the Bash tool: write files with the Write tool.

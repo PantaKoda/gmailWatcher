@@ -141,6 +141,128 @@ public sealed class MessageStore(ArchiveDatabase database, TimeProvider time)
             ("@body", message.BodyText.Length == 0 ? message.Snippet : message.BodyText));
     }
 
+    /// <summary>
+    /// Replaces what was derived from decoding the text of already archived messages (subject, sender, recipients, search
+    /// index) with <paramref name="batch"/>. Files, labels and attachments are untouched. A message whose visible fields
+    /// changed gets a new revision, so the analytics copy picks it up. Returns how many such messages there were.
+    /// </summary>
+    public int ApplyText(IReadOnlyList<(long Pk, MessageText Text)> batch)
+    {
+        if (batch.Count == 0)
+        {
+            return 0;
+        }
+
+        using var connection = database.Open();
+        using var transaction = connection.BeginTransaction(deferred: false);
+        long? revision = null;
+        var changed = 0;
+        foreach (var (pk, text) in batch)
+        {
+            string? subject = null, fromName = null, fromAddress = null, snippet = null;
+            using (var command = connection.Command("SELECT subject, from_name, from_address, snippet FROM messages WHERE pk = @pk", transaction, ("@pk", pk)))
+            using (var reader = command.ExecuteReader())
+            {
+                if (!reader.Read())
+                {
+                    continue;
+                }
+
+                subject = reader.IsDBNull(0) ? null : reader.GetString(0);
+                fromName = reader.IsDBNull(1) ? null : reader.GetString(1);
+                fromAddress = reader.IsDBNull(2) ? null : reader.GetString(2);
+                snippet = reader.IsDBNull(3) ? "" : reader.GetString(3);
+            }
+
+            var wanted = AddressRows(text);
+            var stored = new List<(string Role, int Position, string? Name, string Address)>();
+            using (var command = connection.Command("SELECT role, position, name, address FROM message_addresses WHERE message_pk = @pk ORDER BY role, position", transaction, ("@pk", pk)))
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    stored.Add((reader.GetString(0), reader.GetInt32(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.GetString(3)));
+                }
+            }
+
+            var differs = !string.Equals(subject, text.Subject, StringComparison.Ordinal)
+                || !string.Equals(fromName, text.From?.Name, StringComparison.Ordinal)
+                || !string.Equals(fromAddress, text.From?.Address, StringComparison.Ordinal)
+                || !stored.OrderBy(r => r.Role, StringComparer.Ordinal).ThenBy(r => r.Position).SequenceEqual(wanted.OrderBy(r => r.Role, StringComparer.Ordinal).ThenBy(r => r.Position));
+            if (differs)
+            {
+                changed++;
+                revision ??= ArchiveDatabase.NextRevision(connection, transaction);
+                connection.Run(
+                    "UPDATE messages SET subject = @subject, from_name = @fromName, from_address = @fromAddress, rev = @rev WHERE pk = @pk",
+                    transaction, ("@subject", text.Subject), ("@fromName", text.From?.Name), ("@fromAddress", text.From?.Address), ("@rev", revision), ("@pk", pk));
+                connection.Run("DELETE FROM message_addresses WHERE message_pk = @pk", transaction, ("@pk", pk));
+                InsertAddresses(connection, transaction, pk, "from", text.From is null ? [] : [text.From]);
+                InsertAddresses(connection, transaction, pk, "to", text.To);
+                InsertAddresses(connection, transaction, pk, "cc", text.Cc);
+                InsertAddresses(connection, transaction, pk, "bcc", text.Bcc);
+                InsertAddresses(connection, transaction, pk, "reply-to", text.ReplyTo);
+            }
+
+            // The body is not stored anywhere but the index, so the index entry is always rewritten.
+            var attachmentNames = new List<string>();
+            using (var command = connection.Command("SELECT file_name FROM attachments WHERE message_pk = @pk ORDER BY part_index", transaction, ("@pk", pk)))
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    attachmentNames.Add(reader.GetString(0));
+                }
+            }
+
+            connection.Run("DELETE FROM message_fts WHERE rowid = @pk", transaction, ("@pk", pk));
+            connection.Run(
+                "INSERT INTO message_fts (rowid, subject, sender, recipients, attachments, body) VALUES (@pk, @subject, @sender, @recipients, @attachments, @body)",
+                transaction,
+                ("@pk", pk), ("@subject", text.Subject ?? ""), ("@sender", Describe(text.From is null ? [] : [text.From])),
+                ("@recipients", Describe(text.To.Concat(text.Cc))), ("@attachments", string.Join(' ', attachmentNames)),
+                ("@body", text.BodyText.Length == 0 ? snippet : text.BodyText));
+        }
+
+        transaction.Commit();
+        return changed;
+    }
+
+    private static List<(string Role, int Position, string? Name, string Address)> AddressRows(MessageText text)
+    {
+        var rows = new List<(string, int, string?, string)>();
+        void Add(string role, IReadOnlyList<MailAddress> list)
+        {
+            // INSERT OR IGNORE on (message, role, position) means every listed address is stored.
+            for (var i = 0; i < list.Count; i++)
+            {
+                rows.Add((role, i, list[i].Name, list[i].Address));
+            }
+        }
+
+        Add("from", text.From is null ? [] : [text.From]);
+        Add("to", text.To);
+        Add("cc", text.Cc);
+        Add("bcc", text.Bcc);
+        Add("reply-to", text.ReplyTo);
+        return rows;
+    }
+
+    /// <summary>How far the text of an account's archived messages has been brought up to date (see <see cref="TextRefresher"/>).</summary>
+    public int GetTextVersion(int accountId)
+    {
+        using var connection = database.Open();
+        return (int)(connection.Scalar<long?>("SELECT value FROM meta WHERE key = @key", null, ("@key", $"text_version:{accountId}")) ?? 1);
+    }
+
+    public void SetTextVersion(int accountId, int version)
+    {
+        using var connection = database.Open();
+        connection.Run(
+            "INSERT INTO meta (key, value) VALUES (@key, @value) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+            null, ("@key", $"text_version:{accountId}"), ("@value", version));
+    }
+
     private static void InsertAddresses(SqliteConnection connection, SqliteTransaction transaction, long pk, string role, IReadOnlyList<MailAddress> addresses)
     {
         for (var position = 0; position < addresses.Count; position++)

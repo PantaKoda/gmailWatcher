@@ -2,6 +2,16 @@ namespace GmailWatcher.Archive.Ingest;
 
 public sealed record MailAddress(string? Name, string Address);
 
+/// <summary>The fields of a message that come from decoding its text: what the list, the search index and the analytics show.</summary>
+public sealed record MessageText(
+    string? Subject,
+    MailAddress? From,
+    IReadOnlyList<MailAddress> To,
+    IReadOnlyList<MailAddress> Cc,
+    IReadOnlyList<MailAddress> Bcc,
+    IReadOnlyList<MailAddress> ReplyTo,
+    string BodyText);
+
 public sealed record IngestedAttachment(
     int Index,
     string FileName,

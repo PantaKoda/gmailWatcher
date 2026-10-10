@@ -69,7 +69,7 @@ public sealed partial class AttachmentViewModel(AttachmentInfo info, IFileLaunch
 }
 
 /// <summary>The message open on the right: headers, body as plain text, attachments.</summary>
-public sealed partial class MessagePreviewViewModel(MessageDetail detail, IFileLauncher files) : ObservableObject
+public sealed partial class MessagePreviewViewModel(MessageDetail detail, IFileLauncher files, Func<string, Task> copy) : ObservableObject
 {
     public string Subject => detail.Summary.Subject;
 
@@ -97,6 +97,38 @@ public sealed partial class MessagePreviewViewModel(MessageDetail detail, IFileL
 
     public bool HasAttachments => Attachments.Count > 0;
 
+    /// <summary>Says what was just copied (empty until something was).</summary>
+    [ObservableProperty]
+    public partial string CopyStatus { get; private set; } = "";
+
+    /// <summary>Subject, headers and text, as one block that pastes well into a document or an email.</summary>
+    public string AllText
+    {
+        get
+        {
+            var lines = new List<string> { Subject, $"From: {From}", $"To: {To}" };
+            if (HasCc)
+            {
+                lines.Add($"Cc: {Cc}");
+            }
+
+            lines.Add($"Date: {Date}");
+            return string.Join(Environment.NewLine, lines) + Environment.NewLine + Environment.NewLine + Body;
+        }
+    }
+
+    [RelayCommand]
+    private Task CopyBodyAsync() => CopyAsync(Body, "Message text copied.");
+
+    [RelayCommand]
+    private Task CopyAllAsync() => CopyAsync(AllText, "Whole message copied.");
+
+    private async Task CopyAsync(string text, string done)
+    {
+        await copy(text);
+        CopyStatus = done;
+    }
+
     [RelayCommand]
     private void ShowFile() => files.Reveal(detail.EmlPath);
 
@@ -108,7 +140,7 @@ public sealed partial class MessagePreviewViewModel(MessageDetail detail, IFileL
 /// The Browse tab: full-text search over everything archived for the account, with a plain-text preview. HTML is never
 /// rendered, and risky attachment types are shown in Explorer instead of being opened.
 /// </summary>
-public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, IFileLauncher files, IUiDispatcher dispatcher) : ObservableObject, IDisposable
+public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, IFileLauncher files, IUiDispatcher dispatcher, Func<string, Task> copy) : ObservableObject, IDisposable
 {
     private const int PageSize = 50;
     private static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(250);
@@ -312,7 +344,7 @@ public sealed partial class BrowseViewModel(int accountId, ArchiveHost archive, 
         {
             if (Selected == row)
             {
-                Preview = detail is null ? null : new MessagePreviewViewModel(detail, files);
+                Preview = detail is null ? null : new MessagePreviewViewModel(detail, files, copy);
             }
         });
     }

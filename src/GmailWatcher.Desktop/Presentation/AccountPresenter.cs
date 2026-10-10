@@ -249,6 +249,8 @@ public static class AccountPresenter
             SyncPhase.Reconciling => (s.Detail is { Length: > 0 } label ? $"Checking labels… ({label})" : "Checking labels…", s.Total > 0 ? 100.0 * s.Done / s.Total : 0, s.Total <= 0),
             SyncPhase.Analytics => ("Updating analytics…", 0, true),
             SyncPhase.Finishing => ("Finishing…", 0, true),
+            SyncPhase.Indexing => (s.Total > 0 ? $"Improving the text of saved mail… {Formatting.Count(s.Done)} of {Formatting.Count(s.Total)}" : "Improving the text of saved mail…",
+                s.Total > 0 ? 100.0 * s.Done / s.Total : 0, s.Total <= 0),
             _ => ("Starting…", 0, true),
         };
     }

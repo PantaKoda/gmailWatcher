@@ -149,6 +149,36 @@ public sealed class DetailsViewModelTests
     }
 
     [Fact]
+    public async Task The_open_message_can_be_copied_to_the_clipboard_as_text_or_as_a_whole()
+    {
+        var (kit, main, row) = await SyncedAsync(30);
+        using var _ = kit;
+        main.Accounts[0].ShowDetailsCommand.Execute(null);
+        var browse = main.Details!.Browse;
+        browse.EnsureLoaded();
+        await kit.UntilAsync(() => browse.Results.Count > 0 && !browse.IsSearching, what: "results");
+        browse.Selected = browse.Results[0];
+        await kit.UntilAsync(() => browse.Preview is not null, what: "the preview");
+        var preview = browse.Preview!;
+        Assert.Equal("", preview.CopyStatus);
+
+        await preview.CopyBodyCommand.ExecuteAsync(null);
+
+        Assert.Equal(preview.Body, Assert.Single(kit.Shell.Copied));
+        Assert.Equal("Message text copied.", preview.CopyStatus);
+
+        await preview.CopyAllCommand.ExecuteAsync(null);
+
+        var all = kit.Shell.Copied[^1];
+        Assert.StartsWith(preview.Subject, all, StringComparison.Ordinal);
+        Assert.Contains($"From: {preview.From}", all, StringComparison.Ordinal);
+        Assert.Contains($"To: {preview.To}", all, StringComparison.Ordinal);
+        Assert.Contains($"Date: {preview.Date}", all, StringComparison.Ordinal);
+        Assert.EndsWith(preview.Body, all, StringComparison.Ordinal);
+        Assert.Equal("Whole message copied.", preview.CopyStatus);
+    }
+
+    [Fact]
     public async Task Searching_narrows_the_list_and_an_empty_result_says_so()
     {
         var (kit, main, row) = await SyncedAsync(100);

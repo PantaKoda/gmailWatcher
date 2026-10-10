@@ -86,6 +86,31 @@ public sealed class MessageIngestor(ArchiveLayout layout, IngestOptions options,
             ParseError: parseError);
     }
 
+    /// <summary>
+    /// Reads the text fields of an archived message again from its raw bytes (what the search index and the message list are
+    /// built from). Returns null when the message cannot be parsed. Nothing is written.
+    /// </summary>
+    public MessageText? ReadText(byte[] raw, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(raw);
+        try
+        {
+            using var stream = new MemoryStream(raw, writable: false);
+            var mime = MimeMessage.Load(Parser, stream, cancellationToken);
+            var from = mime.From.Mailboxes.FirstOrDefault();
+            return new MessageText(
+                mime.Subject,
+                from is null ? null : new MailAddress(Clean(from.Name), from.Address ?? ""),
+                Addresses(mime.To), Addresses(mime.Cc), Addresses(mime.Bcc), Addresses(mime.ReplyTo),
+                BodyText(mime));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "An archived message could not be parsed again");
+            return null;
+        }
+    }
+
     private List<IngestedAttachment> SaveAttachments(string accountFolder, RemoteMessage message, MimeMessage mime, CancellationToken cancellationToken)
     {
         var parts = new List<MimeEntity>();

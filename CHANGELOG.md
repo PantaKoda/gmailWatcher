@@ -4,7 +4,11 @@ What changed in each Gmail Watcher release. The section for a version becomes it
 
 ## [Unreleased]
 
+### Fixed
+- **Mail in older text encodings showed as gibberish** (for example `Êáëçìýñá` instead of `Καλημέρα`). Greek mail sent as ISO-8859-7 or Windows-1253, and likewise Cyrillic, Central European and Asian mail in older encodings, is now read correctly in the message view, the message list and search. Mail you already downloaded is repaired automatically at the start of the next sync ("Improving the text of saved mail"): the saved `.eml` files were never affected, only the subjects, sender names and search entries made from them.
+
 ### Added
+- **Copy from the message view:** *Copy text* and *Copy all* buttons, selectable subject and sender lines, and a right-click menu (Copy, Select all, Copy whole message) on the text.
 - The MIT license and a list of the open-source packages Gmail Watcher uses now ship in the download (`LICENSE`, `THIRD-PARTY-NOTICES.md`).
 
 ## [0.1.1] - 2026-10-10

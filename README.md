@@ -34,7 +34,7 @@ Want to look around first? Start `GmailWatcher.exe --demo` (or press *Explore wi
 - **Accounts:** per account the messages, size and attachments archived, when it last synced, how it is doing right now (progress, estimated time left) and whether it is verified.
 - **Details → Overview:** the verification result in plain words, what is archived, the exact steps for emptying Gmail, the archive folder, *Re-check everything*, *Disconnect*, and *Delete from this PC* (typed confirmation).
 - **Details → Insights:** analytics computed by DuckDB.
-- **Details → Browse:** search all mail (`invoice`, `from:ann`, `subject:"quarterly report"`, `file:budget`), filter by label or attachments, read messages as plain text, open or reveal attachments.
+- **Details → Browse:** search all mail (`invoice`, `from:ann`, `subject:"quarterly report"`, `file:budget`), filter by label or attachments, read messages as plain text (copy the text or the whole message with one click, or select part of it), open or reveal attachments.
 - **Settings:** archive and Google info, optional automatic syncing while the app is open (off by default), theme, accent, density, motion, updates, diagnostics.
 
 ## How long does the first sync take?

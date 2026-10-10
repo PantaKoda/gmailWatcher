@@ -34,7 +34,7 @@ public sealed partial class AccountDetailsViewModel : ObservableObject, IDisposa
         _dispatcher = dispatcher;
         _time = time;
         Insights = new InsightsViewModel(row.Id, archive, dispatcher);
-        Browse = new BrowseViewModel(row.Id, archive, files, dispatcher);
+        Browse = new BrowseViewModel(row.Id, archive, files, dispatcher, shell.CopyTextAsync);
         Row.PropertyChanged += OnRowChanged;
         Refresh();
     }

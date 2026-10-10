@@ -50,6 +50,7 @@ public sealed class SyncEngine
     private readonly SyncOptions _options;
     private readonly ILogger<SyncEngine> _logger;
     private readonly IAnalyticsSink? _analytics;
+    private readonly TextRefresher? _textRefresher;
 
     public SyncEngine(
         AccountStore accounts,
@@ -58,7 +59,8 @@ public sealed class SyncEngine
         ArchiveLayout layout,
         SyncOptions options,
         ILogger<SyncEngine> logger,
-        IAnalyticsSink? analytics = null)
+        IAnalyticsSink? analytics = null,
+        TextRefresher? textRefresher = null)
     {
         _accounts = accounts;
         _messages = messages;
@@ -67,6 +69,7 @@ public sealed class SyncEngine
         _options = options;
         _logger = logger;
         _analytics = analytics;
+        _textRefresher = textRefresher;
     }
 
     public bool IsRunning(int accountId) => _running.ContainsKey(accountId);
@@ -117,6 +120,14 @@ public sealed class SyncEngine
             Report(SyncProgress.Starting, force: true);
             try
             {
+                // Local work that needs no Gmail: bring the text of earlier downloads up to date once (a no-op afterwards).
+                if (engine._textRefresher is { } refresher)
+                {
+                    await Task.Run(
+                        () => refresher.RefreshIfNeeded(account, (done, total) => Report(new SyncProgress(SyncPhase.Indexing, done, total, 0, null), force: done >= total), ct), ct)
+                        .ConfigureAwait(false);
+                }
+
                 var profile = await mailbox.GetProfileAsync(ct).ConfigureAwait(false);
                 remoteTotal = profile.MessagesTotal;
                 if (!string.Equals(profile.EmailAddress, account.Email, StringComparison.OrdinalIgnoreCase))
