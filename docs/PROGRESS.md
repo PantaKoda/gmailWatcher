@@ -93,3 +93,6 @@ The Google client is tested against scripted HTTP fixtures built from Google's d
 - Avalonia 12: `ContextMenu.PlacementTarget` is null; find the owner with `FindLogicalAncestorOfType<SelectableTextBlock>()` from the menu item. `SelectableTextBlock` has no built-in menu.
 - Python is not installed; use sed/PowerShell/Edit for scripted edits. Escaped backslashes through sed are unreliable: use the editor.
 - Bash heredocs containing apostrophes break the Bash tool: write files with the Write tool.
+- CI runners have slow disks and the app flushes every file (by design), so syncs in tests can take 10-20x longer there than on a dev PC, especially while the other test
+  assemblies run in parallel. Test waits are generous on purpose (`TestKit.UntilAsync` 120 s, `WaitIdleAsync` 240 s): they only matter when something really hangs. The release
+  workflow reruns the tests, so a flaky test blocks a release: if CI fails, read the log before re-running, and fix the cause.

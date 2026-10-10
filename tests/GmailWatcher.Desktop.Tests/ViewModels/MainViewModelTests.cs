@@ -7,7 +7,7 @@ namespace GmailWatcher.Desktop.Tests.ViewModels;
 
 public sealed class MainViewModelTests
 {
-    internal static async Task WaitUntilAsync(Func<bool> condition, int seconds = 30, string? what = null)
+    internal static async Task WaitUntilAsync(Func<bool> condition, int seconds = 120, string? what = null)
     {
         var deadline = DateTime.UtcNow.AddSeconds(seconds);
         while (!condition())

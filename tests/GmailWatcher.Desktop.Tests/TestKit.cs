@@ -231,7 +231,7 @@ internal sealed class TestKit : IDisposable
         new(Shell, Archive, Accounts, Sync, Google, Files, Browser, Updates, dispatcher ?? Pump, Time, new AppMode(demo));
 
     /// <summary>Waits for a condition on view-model state, running the queued UI work as it goes.</summary>
-    public async Task UntilAsync(Func<bool> condition, int seconds = 30, string? what = null)
+    public async Task UntilAsync(Func<bool> condition, int seconds = 120, string? what = null)
     {
         var deadline = DateTime.UtcNow.AddSeconds(seconds);
         while (true)
@@ -252,7 +252,7 @@ internal sealed class TestKit : IDisposable
     }
 
     /// <summary>Waits until the account has no job running (the jobs run on background threads).</summary>
-    public async Task WaitIdleAsync(int accountId, int seconds = 60)
+    public async Task WaitIdleAsync(int accountId, int seconds = 240)
     {
         var deadline = DateTime.UtcNow.AddSeconds(seconds);
         while (Sync.IsBusy(accountId))
