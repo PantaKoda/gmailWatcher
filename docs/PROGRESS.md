@@ -44,7 +44,7 @@ tests/*                    xunit.v3 on Microsoft.Testing.Platform:  dotnet test 
 | 7. Docs (README, google-cloud-setup, architecture, updates), CHANGELOG | done |
 | 8. End-to-end check with `--demo`, screenshots, publish script run | done (see below) |
 
-Tests: **705**, all passing (Core 72, Google 292, Archive 133, Desktop 208). The full suite was run repeatedly back to back to
+Tests: **752**, all passing (Core 78, Google 292, Archive 133, Desktop 249). The full suite was run repeatedly back to back to
 shake out flaky tests; the ones found were test-harness races (see Gotchas), not product bugs, and are fixed.
 
 ## Verified vs not verified
@@ -99,3 +99,5 @@ The Google client is tested against scripted HTTP fixtures built from Google's d
 - Gmail's `messages.list` can keep naming messages for a while after a bulk deletion (the profile's `messagesTotal` was 389 while the list still had 1,826 ids). Asking for such a
   message answers 404 (`GetMessageAsync` returns null). Sync counts it as vanished; Verify probes up to 40 listed-but-not-archived ids and records the ones Gmail says do not
   exist as notes (`ListedButGone`), not as gaps. More than 40 unarchived ids means the archive is simply behind: sync, then verify again.
+- Tray / background (0.2.0): `AppShell` runs with `ShutdownMode.OnExplicitShutdown`; the app ends when the main window really closes (`Quit`, OS shutdown, or closing with "keep running in the tray" off), never when it is merely hidden. `WindowLifetime` holds the close/minimise rules, `TrayStatus` the tooltip and icon, `TrayController` the Avalonia `TrayIcon`, `IStartupRegistration` the HKCU Run entry (`--background` = start hidden). A second launch shows the window (named pipe); a second `--background` launch exits silently.
+- How the tray was verified: launch the built exe with `GMAILWATCHER_DATA_DIR` pointing at a scratch folder and `--demo`, `CloseMainWindow()` (it must stay running with no window), launch again (window returns), launch with `--background`. Windows records every notification-area icon under `HKCU\Control Panel\NotifyIconSettings` (ExecutablePath, InitialTooltip), which is how its creation can be seen from a script; the UI Automation tree does not show icons in the collapsed overflow.

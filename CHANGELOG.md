@@ -4,6 +4,16 @@ What changed in each Gmail Watcher release. The section for a version becomes it
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-11
+
+### Added
+- **Runs in the background, from the tray.** Gmail Watcher now has a notification-area icon, like Docker Desktop's or Tailscale's. Click it to open the window; right-click it for *Sync all accounts now*, *Settings* and *Quit*. Its tooltip says what the app is doing ("Syncing…", "All accounts verified", "Problems found"), and the icon gets a small dot: white while it syncs or checks, red when something needs you.
+- **Closing or minimising the window keeps Gmail Watcher running in the tray** (on by default; *Settings, In the background* turns it off). Together with *Sync connected accounts* (every hour, every 6 hours or daily), your mail is archived without the window open. The first time you close the window, it explains where the app went. Launching Gmail Watcher again brings the window back.
+- **Start with Windows** (off by default, *Settings, In the background*): starts Gmail Watcher when you sign in, straight into the tray with no window. It is a per-user Windows start-up entry that you can also see and remove under Windows Settings, Apps, Startup.
+
+### Changed
+- Closing the window no longer quits the app unless you turn *Keep running in the tray* off. To quit, use the tray icon's *Quit Gmail Watcher*.
+
 ## [0.1.4] - 2026-10-11
 
 ### Fixed

@@ -28,10 +28,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IShell _shell;
     private readonly IFileLauncher _files;
     private readonly AppPaths _paths;
+    private readonly IStartupRegistration _startup;
     private bool _loading;
 
     public SettingsViewModel(SettingsService settings, ArchiveHost archive, GoogleClientSetup google, ICredentialStore credentials, UpdateService updates,
-        DiagnosticsService diagnostics, IShell shell, IFileLauncher files, AppPaths paths, AppMode mode)
+        DiagnosticsService diagnostics, IShell shell, IFileLauncher files, AppPaths paths, AppMode mode, IStartupRegistration startup)
     {
         _settings = settings;
         _archive = archive;
@@ -42,6 +43,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _shell = shell;
         _files = files;
         _paths = paths;
+        _startup = startup;
         IsDemo = mode.IsDemo;
         Load();
         _settings.ProblemChanged += OnProblemChanged;
@@ -98,6 +100,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool SyncOnStartup { get; set; }
 
+    [ObservableProperty]
+    public partial bool KeepRunningInTray { get; set; }
+
+    [ObservableProperty]
+    public partial bool StartWithWindows { get; set; }
+
+    /// <summary>False when this copy cannot register with Windows (running from source, the demo): the switch is disabled and says why.</summary>
+    public bool CanStartWithWindows => _startup.IsAvailable;
+
+    public bool HasStartWithWindowsNote => !_startup.IsAvailable;
+
+    public string StartWithWindowsNote => _startup.WhyUnavailable ?? "";
+
     public string Version => AppInfo.Display;
 
     public string DataDirectory => _paths.DataDirectory;
@@ -145,6 +160,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Motion = MotionChoices.First(c => c.Value == app.Appearance.Motion);
         AutoSync = AutoSyncChoices.First(c => c.Value == app.Sync.AutoSync);
         SyncOnStartup = app.Sync.SyncOnStartup;
+        KeepRunningInTray = app.Background.KeepRunningInTray;
+        StartWithWindows = app.Background.StartWithWindows;
         StorageProblem = _settings.Problem;
         _loading = false;
     }
@@ -160,6 +177,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnAutoSyncChanged(Choice<AutoSyncInterval> value) => Save(s => s with { Sync = s.Sync with { AutoSync = value.Value } });
 
     partial void OnSyncOnStartupChanged(bool value) => Save(s => s with { Sync = s.Sync with { SyncOnStartup = value } });
+
+    partial void OnKeepRunningInTrayChanged(bool value) => Save(s => s with { Background = s.Background with { KeepRunningInTray = value } });
+
+    partial void OnStartWithWindowsChanged(bool value) => Save(s => s with { Background = s.Background with { StartWithWindows = value } });
 
     private void Save(Func<AppSettings, AppSettings> change)
     {

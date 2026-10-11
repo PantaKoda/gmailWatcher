@@ -46,6 +46,11 @@ internal static class CompositionRoot
         services.AddSingleton(sp => new ArchiveHost(options, sp.GetRequiredService<UserConfigWriter>(), loggerFactory, TimeProvider.System,
             demo ? Path.Combine(paths.DataDirectory, "archive") : null));
 
+        // Starting with Windows: a per-user entry, only for the real program on Windows (the demo and other systems cannot register).
+        services.AddSingleton<Platform.IStartupRegistration>(_ => !demo && OperatingSystem.IsWindows()
+            ? new Platform.Windows.WindowsStartupRegistration()
+            : new Platform.NoStartupRegistration(demo ? "The demo never registers itself with Windows." : "Starting with Windows is only available on Windows."));
+
         // Where refresh tokens go: Credential Manager on Windows, otherwise a clearly labeled memory-only store (never plaintext on disk).
         services.AddSingleton<ICredentialStore>(_ => !demo && OperatingSystem.IsWindows()
             ? new Platform.Windows.WindowsCredentialStore()

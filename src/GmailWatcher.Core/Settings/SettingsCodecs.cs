@@ -20,6 +20,7 @@ public static partial class SettingsCodecs
         var appearance = settings.Appearance ?? new AppearanceSettings();
         var window = settings.Window ?? new WindowSettings();
         var sync = settings.Sync ?? new SyncSettings();
+        var background = settings.Background ?? new BackgroundSettings();
 
         return settings with
         {
@@ -38,6 +39,7 @@ public static partial class SettingsCodecs
                 Height = Finite(window.Height) is { } h and > 0 ? h : null,
             },
             Sync = sync with { AutoSync = Defined(sync.AutoSync) },
+            Background = background,
         };
     }
 

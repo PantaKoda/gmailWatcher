@@ -117,6 +117,53 @@ public sealed class SettingsCodecTests
     }
 
     [Fact]
+    public void By_default_the_app_keeps_running_in_the_tray_but_never_registers_itself_with_windows()
+    {
+        var background = SettingsCodecs.App.CreateDefault().Background;
+
+        Assert.True(background.KeepRunningInTray);
+        Assert.False(background.StartWithWindows);
+        Assert.False(background.TrayHintShown);
+    }
+
+    [Fact]
+    public void A_settings_file_from_before_the_tray_existed_loads_with_the_tray_defaults()
+    {
+        var loaded = SettingsCodecs.App.Deserialize("""{"schemaVersion":1,"appearance":{"theme":"Dark"},"sync":{"autoSync":"EveryHour"}}""");
+
+        Assert.Equal(SettingsLoadStatus.Loaded, loaded.Status);
+        Assert.Equal(ThemePreference.Dark, loaded.Value.Appearance.Theme);
+        Assert.True(loaded.Value.Background.KeepRunningInTray);
+        Assert.False(loaded.Value.Background.StartWithWindows);
+    }
+
+    [Theory]
+    [InlineData("""{"schemaVersion":1,"background":{"trayHintShown":true}}""")]
+    [InlineData("""{"schemaVersion":1,"background":{"startWithWindows":true}}""")]
+    [InlineData("""{"schemaVersion":1,"background":{}}""")]
+    public void A_background_section_that_names_only_some_choices_keeps_the_defaults_for_the_rest(string json)
+    {
+        var loaded = SettingsCodecs.App.Deserialize(json);
+
+        Assert.Equal(SettingsLoadStatus.Loaded, loaded.Status);
+        Assert.True(loaded.Value.Background.KeepRunningInTray);
+    }
+
+    [Fact]
+    public void Background_choices_round_trip_and_a_missing_section_is_repaired()
+    {
+        var chosen = SettingsCodecs.App.CreateDefault() with { Background = new BackgroundSettings { KeepRunningInTray = false, StartWithWindows = true, TrayHintShown = true } };
+
+        var loaded = SettingsCodecs.App.Deserialize(SettingsCodecs.App.Serialize(chosen));
+        var nulled = SettingsCodecs.App.Deserialize("""{"schemaVersion":1,"background":null}""");
+
+        Assert.False(loaded.Value.Background.KeepRunningInTray);
+        Assert.True(loaded.Value.Background.StartWithWindows);
+        Assert.True(loaded.Value.Background.TrayHintShown);
+        Assert.True(nulled.Value.Background.KeepRunningInTray);
+    }
+
+    [Fact]
     public void Fields_this_version_does_not_know_survive_a_save()
     {
         const string Json = """{"schemaVersion":1,"appearance":{"theme":"Dark","futureOption":42},"somethingNew":{"a":[1,2]}}""";

@@ -21,6 +21,8 @@ public sealed record AppSettings : SettingsRecord
     public WindowSettings Window { get; init; } = new();
 
     public SyncSettings Sync { get; init; } = new();
+
+    public BackgroundSettings Background { get; init; } = new();
 }
 
 public enum ThemePreference
@@ -97,4 +99,25 @@ public sealed record SyncSettings : SettingsRecord
         AutoSyncInterval.Daily => TimeSpan.FromDays(1),
         _ => null,
     };
+}
+
+/// <summary>
+/// How Gmail Watcher behaves when its window is not in use. The tray icon is always there while the app runs; these decide
+/// what closing or minimising the window does, and whether the app starts with Windows.
+/// </summary>
+public sealed record BackgroundSettings : SettingsRecord
+{
+    /// <summary>
+    /// Closing or minimising the window hides it to the tray (notification area) and Gmail Watcher keeps running, so scheduled
+    /// syncs carry on, like Docker Desktop or Tailscale. Off: closing the window quits. Quit from the tray menu either way.
+    /// </summary>
+    // "set", not "init", on purpose: the source-generated JSON reader fills a missing init-only property with the type's zero value
+    // (false), which would silently turn this default off for every settings file that does not name it. Test: Core SettingsCodecTests.
+    public bool KeepRunningInTray { get; set; } = true;
+
+    /// <summary>Start Gmail Watcher when you sign in to Windows, straight into the tray. Off by default: nothing is registered unless asked.</summary>
+    public bool StartWithWindows { get; init; }
+
+    /// <summary>The one-time explanation of "still running in the tray" has been shown.</summary>
+    public bool TrayHintShown { get; init; }
 }

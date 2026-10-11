@@ -224,6 +224,8 @@ internal sealed class TestKit : IDisposable
 
     public RecordingBrowser Browser { get; }
 
+    public FakeStartup Startup { get; } = new();
+
     /// <summary>Queued UI work; run it with <see cref="UntilAsync"/> or <see cref="WaitIdleAsync"/>.</summary>
     public PumpDispatcher Pump { get; } = new();
 
@@ -301,5 +303,29 @@ internal sealed class TestKit : IDisposable
             throw new ConnectException(UnavailableReason!);
 
         public Task SignOutAsync(string email, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+}
+
+/// <summary>A start-up registration that only remembers what it was asked, so no test touches the real registry.</summary>
+internal sealed class FakeStartup(bool available = true) : IStartupRegistration
+{
+    public bool IsAvailable => available;
+
+    public string? WhyUnavailable => available ? null : "Only the installed GmailWatcher.exe can start with Windows.";
+
+    public bool IsEnabled { get; private set; }
+
+    public List<bool> Calls { get; } = [];
+
+    public bool Apply(bool enabled)
+    {
+        Calls.Add(enabled);
+        if (enabled && !available)
+        {
+            return false;
+        }
+
+        IsEnabled = enabled;
+        return true;
     }
 }

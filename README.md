@@ -8,7 +8,7 @@ A Windows desktop app that makes a **complete, local, searchable backup of your 
 - **Verify** proves the backup is complete and intact *before* you delete anything.
 - Looks and updates like [Repo Watch](../repo-watch): the same space-station HUD theme and accent colors, and updates straight from GitHub releases.
 
-Status: version 0.1.4, Windows 10/11 x64. See [Limitations](#limitations-and-what-was-not-verified).
+Status: version 0.2.0, Windows 10/11 x64. See [Limitations](#limitations-and-what-was-not-verified).
 
 ## The safety model, in five lines
 
@@ -36,6 +36,16 @@ Want to look around first? Start `GmailWatcher.exe --demo` (or press *Explore wi
 - **Details → Insights:** analytics computed by DuckDB.
 - **Details → Browse:** search all mail (`invoice`, `from:ann`, `subject:"quarterly report"`, `file:budget`), filter by label or attachments, read messages as plain text (copy the text or the whole message with one click, or select part of it), open or reveal attachments.
 - **Settings:** archive and Google info, optional automatic syncing while the app is open (off by default), theme, accent, density, motion, updates, diagnostics.
+
+## Running in the background
+
+Gmail Watcher puts an icon in the notification area (the tray, next to the clock), like Docker Desktop or Tailscale, while it runs.
+
+- **Click** the icon to open the window; **right-click** for *Sync all accounts now*, *Settings* and *Quit Gmail Watcher*. The tooltip says what it is doing, and a small dot on the icon shows activity (white) or that something needs you (red).
+- **Closing or minimising the window hides it to the tray** and the app keeps running (*Settings, In the background* turns this off). To really quit, use *Quit* in the tray menu.
+- **Syncing in the background:** choose how often under *Settings, Sync connected accounts* (every hour, every 6 hours or daily). Nothing syncs by itself unless you choose that.
+- **Start with Windows** (off by default) registers a per-user start-up entry that starts Gmail Watcher hidden in the tray when you sign in. It is a normal entry you can also see and remove under Windows Settings, Apps, Startup. It only works for the installed `GmailWatcher.exe`, not when running from source.
+- Windows 11 may keep new tray icons under the **^** arrow: drag the icon onto the taskbar to keep it in sight. Starting Gmail Watcher again always brings the window back.
 
 ## How long does the first sync take?
 

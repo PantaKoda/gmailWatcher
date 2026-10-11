@@ -32,7 +32,14 @@
       </Grid>
       <CheckBox Content="Also sync when Gmail Watcher starts" IsChecked="{Binding SyncOnStartup}" />
       <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
-                 Text="Automatic syncing happens only while Gmail Watcher is open. Google limits how fast mail can be fetched (about 300 messages a minute per account), so a big first download takes hours. Stopping is always safe: what was downloaded is kept and the next sync continues." />
+                 Text="Automatic syncing happens only while Gmail Watcher is running (in the tray counts). Google limits how fast mail can be fetched (about 300 messages a minute per account), so a big first download takes hours. Stopping is always safe: what was downloaded is kept and the next sync continues." />
+
+      <TextBlock Classes="heading" Text="In the background" />
+      <CheckBox Content="Keep running in the tray when I close or minimise the window" IsChecked="{Binding KeepRunningInTray}" />
+      <CheckBox Content="Start Gmail Watcher when I sign in to Windows (straight into the tray)" IsChecked="{Binding StartWithWindows}" IsEnabled="{Binding CanStartWithWindows}" />
+      <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None" Text="{Binding StartWithWindowsNote}" IsVisible="{Binding HasStartWithWindowsNote}" />
+      <TextBlock Classes="secondary" TextWrapping="Wrap" TextTrimming="None"
+                 Text="Gmail Watcher's icon sits in the notification area while it runs, like Docker Desktop's: click it to open the window, right-click for Sync all, Settings and Quit. Together with automatic syncing above, your mail is archived without the window open. Windows may keep new icons under the ^ arrow next to the clock; drag it onto the taskbar to keep it in sight." />
 
       <TextBlock Classes="heading" Text="Appearance" />
       <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">

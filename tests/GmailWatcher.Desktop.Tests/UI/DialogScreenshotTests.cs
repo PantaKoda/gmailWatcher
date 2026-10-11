@@ -30,7 +30,7 @@ public sealed class DialogScreenshotTests
         using var settings = new SettingsService(kit.Paths, NullLogger<SettingsService>.Instance);
         settings.Load();
         var diagnostics = new DiagnosticsService(kit.Paths, kit.Archive, kit.Sync, kit.Credentials, TimeProvider.System);
-        using var viewModel = new SettingsViewModel(settings, kit.Archive, kit.Google, kit.Credentials, kit.Updates, diagnostics, kit.Shell, kit.Files, kit.Paths, new AppMode(false));
+        using var viewModel = new SettingsViewModel(settings, kit.Archive, kit.Google, kit.Credentials, kit.Updates, diagnostics, kit.Shell, kit.Files, kit.Paths, new AppMode(false), kit.Startup);
 
         Show(new SettingsWindow { DataContext = viewModel, Width = 520, Height = 760 }, "10-settings-dark");
         Show(new SettingsWindow { DataContext = viewModel, Width = 520, Height = 760 }, "10-settings-light", ThemeVariant.Light);

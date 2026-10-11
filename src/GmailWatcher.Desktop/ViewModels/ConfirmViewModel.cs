@@ -14,6 +14,14 @@ public sealed partial class ConfirmViewModel(ConfirmRequest request) : Observabl
 
     public bool IsDangerous => request.IsDangerous;
 
+    /// <summary>A notice, not a question: there is nothing to cancel.</summary>
+    public bool InfoOnly => request.InfoOnly;
+
+    public bool ShowCancel => !request.InfoOnly;
+
+    /// <summary>Enter means Cancel, except for the dangerous questions (where Enter must never confirm) and notices (which have no Cancel).</summary>
+    public bool CancelIsDefault => !request.IsDangerous && !request.InfoOnly;
+
     public bool NeedsPhrase => request.RequiredPhrase is not null;
 
     public string PhrasePrompt => request.RequiredPhrase is { } phrase ? $"Type {phrase} to confirm" : "";

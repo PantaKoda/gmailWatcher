@@ -26,6 +26,12 @@ internal static class Program
         using var instance = new Platform.SingleInstance(paths.DataDirectory);
         if (!instance.IsFirst)
         {
+            // Started by Windows at sign-in while it already runs: nothing to show, so do not pop the window up.
+            if (args.Contains(Presentation.WindowLifetime.BackgroundArgument, StringComparer.OrdinalIgnoreCase))
+            {
+                return 0;
+            }
+
             return instance.SignalFirst(TimeSpan.FromSeconds(3)) ? 0 : 1;
         }
 

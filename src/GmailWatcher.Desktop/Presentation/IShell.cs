@@ -4,7 +4,8 @@ namespace GmailWatcher.Desktop.Presentation;
 
 /// <summary>A question the user must answer before something that can't be undone.</summary>
 /// <param name="RequiredPhrase">When set, the confirm button stays disabled until the user types it exactly (for deleting an archive).</param>
-public sealed record ConfirmRequest(string Title, string Message, string ConfirmText, bool IsDangerous = false, string? RequiredPhrase = null);
+/// <param name="InfoOnly">A notice rather than a question: only the confirm button ("Got it") is shown.</param>
+public sealed record ConfirmRequest(string Title, string Message, string ConfirmText, bool IsDangerous = false, string? RequiredPhrase = null, bool InfoOnly = false);
 
 /// <summary>Window-level actions view models can request without referencing windows.</summary>
 public interface IShell

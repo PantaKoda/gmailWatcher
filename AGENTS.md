@@ -30,6 +30,8 @@ Tests use xunit v3 on Microsoft.Testing.Platform: no `-nologo`, and the analyzer
 
 C# with nullable and warnings-as-errors; file-scoped namespaces; central package versions in `Directory.Packages.props` with lock files (`--locked-mode` in CI); comments explain *why*. Avalonia compiled bindings: a control that sets `DataContext` must not also bind other properties to the parent's context (wrap it). Python isn't installed on the maintainer's machine: script with PowerShell or sed, and use heredocs without apostrophes.
 
+- **Settings records and JSON:** the settings are read by a source-generated System.Text.Json context, which fills a *missing* `init`-only property with the type's zero value, overriding a `= true` initializer. A property whose default is not the zero value must be `{ get; set; }` (see `BackgroundSettings.KeepRunningInTray`; test: `SettingsCodecTests`).
+
 ## Layout
 
 `src/GmailWatcher.{Core,Google,Archive,Desktop}`, `tests/*Tests`, `scripts/`, `docs/`. See `docs/architecture.md`.

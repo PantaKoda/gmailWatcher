@@ -3,7 +3,7 @@ using GmailWatcher.Core.Settings;
 namespace GmailWatcher.Desktop.Services;
 
 /// <summary>
-/// Optional syncing while the app is open: on a schedule the user chose (off by default) and, if asked, shortly after
+/// Optional syncing while the app is running, in the tray included: on a schedule the user chose (off by default) and, if asked, shortly after
 /// start-up. Accounts that need reconnecting are skipped. Nothing runs in the background after the app is closed.
 /// </summary>
 public sealed class AutoSyncScheduler(SettingsService settings, SyncService sync, ArchiveHost archive, TimeProvider time) : IDisposable

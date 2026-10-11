@@ -33,6 +33,8 @@
   <ItemGroup>
     <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <AvaloniaResource Include="Assets\GmailWatcher.ico" />
+    <AvaloniaResource Include="Assets\GmailWatcher-busy.ico" />
+    <AvaloniaResource Include="Assets\GmailWatcher-attention.ico" />
   </ItemGroup>
 
   <ItemGroup>

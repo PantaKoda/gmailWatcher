@@ -33,6 +33,7 @@ public sealed class AppShell(
     AccountService accounts,
     UpdateService updates,
     AutoSyncScheduler autoSync,
+    IStartupRegistration startup,
     AppMode mode,
     ILogger<AppShell> logger) : IShell, IDisposable
 {
@@ -46,6 +47,8 @@ public sealed class AppShell(
     private SettingsViewModel? _settingsViewModel;
     private UpdateWindow? _updateWindow;
     private DispatcherTimer? _clock;
+    private TrayController? _tray;
+    private bool _quitting;
 
     public void Start(IClassicDesktopStyleApplicationLifetime desktop, Application application)
     {
@@ -75,9 +78,33 @@ public sealed class AppShell(
         RestorePlacement(_main);
         ApplyAppearance();
         _main.Closing += OnMainClosing;
-        desktop.MainWindow = _main;
-        desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
+        _main.PropertyChanged += OnMainPropertyChanged;
+        // The app ends when the main window really closes (quit, Windows shutting down, or closing with "keep running in the
+        // tray" off), never merely because it is hidden. Explicit mode is also what lets it start with no window at all.
+        _main.Closed += (_, _) =>
+        {
+            logger.LogInformation("Main window closed; shutting down");
+            desktop.Shutdown();
+        };
+        desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         desktop.ShutdownRequested += (_, _) => Shutdown();
+
+        // Started by Windows at sign-in (--background): go straight to the tray, no window.
+        var startHidden = WindowLifetime.StartHidden(desktop.Args ?? [], settings.App.Background.KeepRunningInTray);
+        if (!startHidden)
+        {
+            desktop.MainWindow = _main;
+        }
+
+        StartTray();
+        ApplyStartupRegistration(settings.App.Background.StartWithWindows, repairOnly: true);
+        settings.AppChanged += (_, e) =>
+        {
+            if (e.Previous.Background.StartWithWindows != e.Current.Background.StartWithWindows)
+            {
+                ApplyStartupRegistration(e.Current.Background.StartWithWindows, repairOnly: false);
+            }
+        };
 
         // A second launch asks this one to show its window.
         if (services.GetService<SingleInstance>() is { } instance)
@@ -228,10 +255,135 @@ public sealed class AppShell(
 
     public void Quit()
     {
+        _quitting = true; // closing the window below must really close it, whatever "keep running in the tray" says
         _settingsWindow?.Close();
         _updateWindow?.Close();
         _main?.Close();
         _desktop?.Shutdown();
+    }
+
+    // --- Tray ---------------------------------------------------------------------------------------------------------
+
+    private void StartTray()
+    {
+        if (_application is null || _mainViewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _tray = new TrayController(_application, new TrayActions(
+                Open: () => Dispatcher.UIThread.Post(ShowMain),
+                SyncAll: () => Dispatcher.UIThread.Post(() => sync.StartSyncAll()),
+                OpenSettings: () => Dispatcher.UIThread.Post(OpenSettings),
+                OpenUpdate: () => Dispatcher.UIThread.Post(OpenUpdate),
+                Quit: () => Dispatcher.UIThread.Post(Quit)));
+        }
+        catch (Exception ex)
+        {
+            // No notification area (a locked-down shell, a remote session): the window still works, it just can't hide there.
+            logger.LogWarning(ex, "The tray icon could not be created");
+            return;
+        }
+
+        _mainViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(MainViewModel.StatusText) or nameof(MainViewModel.StatusTone) or nameof(MainViewModel.AnyBusy) or nameof(MainViewModel.UpdateAvailable))
+            {
+                UpdateTray();
+            }
+        };
+        UpdateTray();
+    }
+
+    private void UpdateTray()
+    {
+        if (_tray is null || _mainViewModel is null)
+        {
+            return;
+        }
+
+        var status = TrayStatus.From(_mainViewModel.StatusText, _mainViewModel.StatusTone, _mainViewModel.AnyBusy, _mainViewModel.UpdateAvailable, mode.IsDemo);
+        _tray.Apply(status, _mainViewModel.UpdateAvailable, updates.Latest is { } latest ? $"Update to {latest.Version}…" : null);
+    }
+
+    /// <summary>
+    /// Keeps the Windows start-up entry in line with the setting. At start-up it only repairs an entry that should exist (the program
+    /// may have moved); it never registers anything the user did not ask for.
+    /// </summary>
+    private void ApplyStartupRegistration(bool wanted, bool repairOnly)
+    {
+        if (mode.IsDemo || (repairOnly && !wanted))
+        {
+            return;
+        }
+
+        try
+        {
+            if (!startup.Apply(wanted) && wanted)
+            {
+                logger.LogInformation("Starting with Windows is not available for this copy: {Reason}", startup.WhyUnavailable);
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            logger.LogWarning(ex, "The Windows start-up entry could not be changed");
+        }
+    }
+
+    /// <summary>Hides the window; the app (and the tray icon) keeps running. The first time, it says so.</summary>
+    private void HideToTray()
+    {
+        if (_main is null || _tray is null)
+        {
+            // Without a tray icon there would be no way back: close normally instead of vanishing.
+            _quitting = true;
+            _main?.Close();
+            return;
+        }
+
+        if (_main.WindowState == WindowState.Minimized)
+        {
+            _main.WindowState = WindowState.Normal;
+        }
+
+        if (!settings.App.Background.TrayHintShown)
+        {
+            settings.Update(s => s with { Background = s.Background with { TrayHintShown = true } });
+            _ = ShowTrayHintThenHideAsync();
+            return;
+        }
+
+        _main.Hide();
+    }
+
+    private async Task ShowTrayHintThenHideAsync()
+    {
+        try
+        {
+            await ConfirmAsync(new ConfirmRequest(
+                "Still running in the tray",
+                "Gmail Watcher keeps running in the notification area, next to the clock, so scheduled syncs carry on. Windows may keep its icon under the ^ arrow: " +
+                "drag it onto the taskbar to keep it in sight. Click it to open the window again, or right-click it and choose Quit to close the app for good. " +
+                "You can change this in Settings.",
+                "Got it",
+                InfoOnly: true));
+        }
+        finally
+        {
+            _main?.Hide();
+        }
+    }
+
+    private void OnMainPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == Window.WindowStateProperty && _main is not null
+            && WindowLifetime.HideOnMinimize(_main.WindowState, settings.App.Background.KeepRunningInTray, _quitting))
+        {
+            // After the current event: hiding from inside the state change itself confuses the window.
+            Dispatcher.UIThread.Post(HideToTray);
+        }
     }
 
     // --- Windows ------------------------------------------------------------------------------------------------------
@@ -243,6 +395,7 @@ public sealed class AppShell(
             return;
         }
 
+        _desktop!.MainWindow ??= _main;
         _main.Show();
         if (_main.WindowState == WindowState.Minimized)
         {
@@ -351,6 +504,14 @@ public sealed class AppShell(
                     Height = _main.Height,
                 },
         });
+        var action = WindowLifetime.OnClosing(e.CloseReason, settings.App.Background.KeepRunningInTray, _quitting);
+        logger.LogInformation("Main window closing: reason {Reason}, keep running in tray {Keep}, quitting {Quitting}, tray {Tray} -> {Action}",
+            e.CloseReason, settings.App.Background.KeepRunningInTray, _quitting, _tray is not null, action);
+        if (action == CloseAction.HideToTray)
+        {
+            e.Cancel = true;
+            HideToTray();
+        }
     }
 
     private void Shutdown()
@@ -389,6 +550,7 @@ public sealed class AppShell(
     public void Dispose()
     {
         _clock?.Stop();
+        _tray?.Dispose();
         _mainViewModel?.Dispose();
     }
 }
